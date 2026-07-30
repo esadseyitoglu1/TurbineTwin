@@ -24,4 +24,31 @@ def load_raw() -> pd.DataFrame:
     # (31 can never be a month) -- see data/raw/README.md.
     df["Date/Time"] = pd.to_datetime(df["Date/Time"], format="%d %m %Y %H:%M")
     df = df.rename(columns=COLUMN_RENAME_MAP)
+
+    # Defensive: today's file happens to already be duplicate-free and sorted,
+    # but nothing guarantees a different export of this dataset would be.
+    df = df.drop_duplicates(subset=["timestamp"])
+    df = df.sort_values("timestamp").reset_index(drop=True)
     return df
+
+
+def report_data_quality(df: pd.DataFrame) -> None:
+    """Print a read-only summary of gaps and known SCADA quirks. Does not
+    modify df -- negative idle-mode power readings are real sensor behavior,
+    not corrupted data, so we report them instead of "fixing" them away."""
+    expected = pd.date_range(df["timestamp"].min(), df["timestamp"].max(), freq="10min")
+    missing_count = len(expected) - len(df)
+    gaps = df["timestamp"].diff()
+    biggest_gap = gaps.max()
+
+    negative_power = df[df["active_power_kw"] < 0]
+
+    print(f"Rows: {len(df)} (expected {len(expected)} for a full year at 10-min steps)")
+    print(f"Missing timestamps: {missing_count}")
+    print(f"Largest single gap: {biggest_gap}")
+    print(
+        f"Negative active_power_kw rows: {len(negative_power)} "
+        f"(range {negative_power['active_power_kw'].min():.2f} to "
+        f"{negative_power['active_power_kw'].max():.2f} kW) "
+        "-- idle-mode self-consumption, not an error"
+    )

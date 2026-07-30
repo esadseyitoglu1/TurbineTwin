@@ -42,3 +42,21 @@ ve gerekçeleri buraya işleniyor.
 - Not: `Theoretical_Power_Curve (KWh)` kolon adındaki birim (`KWh`) hatalı —
   gerçekte `kW` (anlık güç), `kWh` (zaman içinde biriken enerji) değil. Kod
   içinde doğru isimle (`theoretical_power_kw`) çağırarak bu düzeltildi.
+
+### Adım 3 — Veri kalitesi raporu (temizlik değil)
+
+- Beklenenin aksine veri setinde hiç `NaN`, hiç tekrar eden zaman damgası yok
+  ve satırlar zaten sıralı. Asıl eksiklik farklı bir biçimde: **2030 zaman
+  aralığı baştan hiç yok** (52.560 beklenirken 50.530 satır var). En büyük
+  boşluk 26-30 Ocak arası 4 gün 8 saat — muhtemelen planlı bakım.
+- 57 satırda küçük negatif güç var (-2.47 ile -0.0005 kW arası), hepsi düşük
+  rüzgarda (2-4.6 m/s, cut-in'e yakın). **Bunlar silinmedi/sıfırlanmadı** —
+  türbinin bekleme modunda kendi elektroniğini şebekeden beslemesinin gerçek
+  fiziksel sonucu, sensör hatası değil.
+- **Çerçeveleme kararı:** fonksiyona `clean()` değil `report_data_quality()`
+  adı verildi, çünkü hiçbir satır silinmedi/değiştirilmedi — sadece veri
+  setinin sınırları belgelendi. Ham SCADA verisini kendi varsayımımızla
+  bozmamak, "temizlik" ile "raporlama" arasındaki bilinçli seçim.
+- Savunma amaçlı (defensive) `drop_duplicates` + `sort_values` kod içinde
+  tutuldu, bugün hiçbir satırı etkilemese de: farklı bir export'ta veya farklı
+  bir türbin verisinde bu garanti olmayabilir.
