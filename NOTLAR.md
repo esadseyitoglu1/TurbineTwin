@@ -68,3 +68,23 @@ ve gerekçeleri buraya işleniyor.
   Bu satırlar Adım 6'da `in_range=True` sayılacak ve Adım 8'in eşik dedektörüne
   aday olacak — mutlak kW olarak küçük ama anma-gücüne-normalize sapma
   metriğinde görünür olmaları bekleniyor.
+
+### Adım 4 — Güç eğrisi grafiği
+
+- `plot_power_curve()`: gerçek veri saydam scatter (`alpha=0.1`) olarak,
+  teorik eğri rüzgar hızına göre sıralanıp çizgi olarak çizildi. S-eğrisi,
+  cut-in dirseği (~3 m/s) ve anma platosu (~12 m/s'den sonra 3600 kW'ta düz)
+  net görünüyor.
+- **Gözlem:** 5-12 m/s aralığında, teorik eğrinin belirgin şekilde altında
+  kalan (bazen ~0 kW'a yakın) yoğun bir nokta bulutu var. İki olası açıklama:
+  (1) **kasıtlı duruş** — bakım, şebeke kısıtlaması (curtailment), gürültü
+  kısıtlaması gibi operasyonel kararlar, anomali değil; (2) **gerçek arıza/
+  performans kaybı** — kanat kirliliği, sensör hatası, yaw yanlış hizalanması,
+  mekanik sürtünme, gerçek bir anomali.
+- **Bilinçli sınır:** Elimizdeki veri setinde durum kodu (CARE veri setindeki
+  gibi "Service"/"Derated Operation" etiketi) yok, bu yüzden bu iki senaryoyu
+  tek bir satırdan kesin ayıramıyoruz. Zamansal kümelenme (saatlerce süren
+  düşüş = bakım; dağınık tekil noktalar = anlık arıza) bir ipucu olabilir ama
+  Faz 1'in kapsamı dışında. Bu ayrımı yapmak Faz 4'ün RAG sisteminin işi:
+  "anomali tespit edildi, olası nedenler nedir" sorusunu bakım dokümanlarına
+  sorup insan yorumuyla desteklemek.
