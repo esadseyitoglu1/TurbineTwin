@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+
+data/raw/*.csv
+data/processed/*.parquet
+
+outputs/figures/*.png
+
+.vscode/
