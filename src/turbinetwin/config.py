@@ -1,0 +1,13 @@
+from pathlib import Path
+
+# Project root: three levels up from this file (src/turbinetwin/config.py -> TurbineTwin/)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
+RAW_DATA_PATH = PROJECT_ROOT / "data" / "raw" / "T1.csv"
+PROCESSED_DATA_DIR = PROJECT_ROOT / "data" / "processed"
+FIGURES_DIR = PROJECT_ROOT / "outputs" / "figures"
+
+# Manufacturer cut-in/cut-out wind speeds (m/s). Outside this range the
+# turbine is expected to produce ~0 power by design, not by fault.
+CUT_IN = 3.0
+CUT_OUT = 25.0
