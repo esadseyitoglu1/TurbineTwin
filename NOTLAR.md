@@ -88,3 +88,25 @@ ve gerekçeleri buraya işleniyor.
   Faz 1'in kapsamı dışında. Bu ayrımı yapmak Faz 4'ün RAG sisteminin işi:
   "anomali tespit edildi, olası nedenler nedir" sorusunu bakım dokümanlarına
   sorup insan yorumuyla desteklemek.
+
+### Adım 5 — Sapma metriği
+
+- `add_naive_deviation()`: `(gerçek - teorik) / teorik` formülü **bilerek**
+  korumasız bırakıldı. Gerçek veride çalıştırılınca canlı olarak doğrulandı:
+  `theoretical_power_kw == 0` olan satırlarda `0/0 = NaN` (43.246/50.530 satır
+  geçerli sonuç üretti, geri kalanı NaN), ama `active_power_kw` sıfırdan farklı
+  küçük bir değerken `theoretical_power_kw = 0` olan satırlarda sonuç **`inf`**
+  (sonsuz) çıktı — `.describe()` çağrısında `mean: NaN`, `RuntimeWarning:
+  invalid value encountered` uyarısıyla yakalandı.
+- **`inf` vs `NaN` ayrımı:** `inf` = sıfır olmayan sayı / sıfır (matematiksel
+  olarak "sonsuza gider"); `NaN` = sıfır / sıfır (tamamen tanımsız). İkisi de
+  C#'taki gibi programı çökertmiyor, sessizce üretilip hesaplamalara (örn.
+  `.mean()`) karışıyor — tek bir `inf` tüm ortalamayı `NaN`'a çeviriyor.
+- `add_normalized_deviation()`: `(gerçek - teorik) / RATED_POWER` formülüne
+  geçildi. `RATED_POWER`, `theoretical_power_kw.max()` ile **veriden türetildi**
+  (hardcode edilmedi) — tepe değer 3600 kW çıktı, Adım 2'de bulduğumuz sayıyla
+  tutarlı. Aynı üç satırda karşılaştırma: `deviation_rel` üçü de `inf`,
+  `deviation_norm` sırasıyla `0.0012`, `0.0024`, `0.0075` — küçük, anlamlı,
+  gerçek büyüklüğü yansıtan sayılar. Tüm veri setinde (`50530` satır) `inf`/`NaN`
+  sayısı: **0**. Sabit ve sıfır olmayan payda, sıfıra bölmeyi yamamak yerine
+  yapısal olarak imkânsız kılıyor.
