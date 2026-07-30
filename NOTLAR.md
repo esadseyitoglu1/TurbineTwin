@@ -60,3 +60,11 @@ ve gerekçeleri buraya işleniyor.
 - Savunma amaçlı (defensive) `drop_duplicates` + `sort_values` kod içinde
   tutuldu, bugün hiçbir satırı etkilemese de: farklı bir export'ta veya farklı
   bir türbin verisinde bu garanti olmayabilir.
+- **Ek inceleme:** 57 negatif güç satırının 40'ı cut-in altında (zararsız, zaten
+  sıfır bekleniyordu), 17'si cut-in üstünde (3.0-4.6 m/s arası). Bu 17 satır
+  cut-in sınırının hemen üstünde kümelenmiş — fiziksel açıklaması, türbinin
+  3 m/s'i geçer geçmez anında tam torka geçmemesi, geçiş bölgesinde kendi iç
+  tüketiminin (kontrol elektroniği, yağ pompası) ürettiğinden fazla olabilmesi.
+  Bu satırlar Adım 6'da `in_range=True` sayılacak ve Adım 8'in eşik dedektörüne
+  aday olacak — mutlak kW olarak küçük ama anma-gücüne-normalize sapma
+  metriğinde görünür olmaları bekleniyor.
