@@ -57,3 +57,38 @@ def plot_deviation_distribution(df: pd.DataFrame, percentile_threshold: float) -
     fig.savefig(output_path, dpi=150)
     plt.close(fig)
     print(f"Saved: {output_path}")
+
+
+def plot_anomalies(df: pd.DataFrame) -> None:
+    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    ax.scatter(
+        df["wind_speed"], df["active_power_kw"],
+        alpha=0.1, s=5, color="steelblue", label="Measured power",
+    )
+
+    theoretical_sorted = df.sort_values("wind_speed")
+    ax.plot(
+        theoretical_sorted["wind_speed"], theoretical_sorted["theoretical_power_kw"],
+        color="darkorange", linewidth=2, label="Theoretical power curve",
+    )
+
+    # Drawn last (on top) with no alpha so the flagged points stay visible
+    # against the dense blue cloud beneath them.
+    anomalies = df[df["is_anomaly"]]
+    ax.scatter(
+        anomalies["wind_speed"], anomalies["active_power_kw"],
+        color="red", s=15, label=f"Flagged anomalies ({len(anomalies)})",
+    )
+
+    ax.set_xlabel("Wind speed (m/s)")
+    ax.set_ylabel("Active power (kW)")
+    ax.set_title("Threshold-based anomaly detection")
+    ax.legend()
+
+    output_path = FIGURES_DIR / "anomalies.png"
+    fig.savefig(output_path, dpi=150)
+    plt.close(fig)
+    print(f"Saved: {output_path}")

@@ -166,3 +166,19 @@ ve gerekçeleri buraya işleniyor.
   ortalama-3σ ile gidilseydi bakım ekibine ~2.7 kat daha fazla alarm gider,
   bu da "alarm yorgunluğu" (alarm fatigue) riskini artırır. Yüzdebirliğin
   daha sıkı/seçici olması, bilinçli tercih sebebimizin somut kanıtı.
+
+### Adım 8 — Eşik tabanlı anomali tespiti
+
+- `flag_anomalies(df, threshold)`: `is_anomaly` kolonu, `in_range & (deviation_norm
+  < threshold)` — iki koşulun **ikisi de** doğru olmalı. Gerçek veride
+  doğrulama: 428 satır işaretlendi (Adım 7'nin sayısıyla birebir tutarlı),
+  menzil-içi satırlarda oran tam **%1.0004** (tanım gereği beklenen), ve
+  menzil-dışı satırlarda işaretlenen: **0** (in_range=False & ... her zaman
+  False üretiyor, doğrulandı).
+- `plot_anomalies()`: güç eğrisi grafiğine kırmızı noktalar olarak katman
+  eklendi (`outputs/figures/anomalies.png`). **Görsel sonuç net:** işaretlenen
+  428 nokta neredeyse tamamen 10-19 m/s aralığında, güç 0-800 kW civarında
+  toplanmış — tam olarak Adım 4'te keşfettiğimiz "teoriğin altında kalan
+  bulut"un dedektör tarafından otomatik yakalanmış hali. Bu, projenin en
+  somut görsel kanıtı: teorik eğri yüksek güç bekliyorken (rüzgar bol), gerçek
+  güç neredeyse sıfırda kalan anlar kırmızıyla işaretleniyor.

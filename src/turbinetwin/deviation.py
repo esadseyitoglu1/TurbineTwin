@@ -48,3 +48,9 @@ def derive_threshold(df):
     mean_minus_3sigma = mean - 3 * std
 
     return percentile_threshold, mean_minus_3sigma
+
+
+def flag_anomalies(df, threshold):
+    df["is_anomaly"] = df["in_range"] & (df["deviation_norm"] < threshold)
+
+    return df
