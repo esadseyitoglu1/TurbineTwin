@@ -182,3 +182,12 @@ ve gerekçeleri buraya işleniyor.
   bulut"un dedektör tarafından otomatik yakalanmış hali. Bu, projenin en
   somut görsel kanıtı: teorik eğri yüksek güç bekliyorken (rüzgar bol), gerçek
   güç neredeyse sıfırda kalan anlar kırmızıyla işaretleniyor.
+- **Zamansal kümelenme analizi:** 428 anomali satırının zaman damgaları arası
+  farka bakıldığında, **324 tanesi** bir öncekinden tam 10 dakika sonra geliyor
+  (yani ardışık, boşluksuz). Toplam 428 satır sadece **104 ayrı bloğa**
+  ayrılıyor — ortalama blok uzunluğu birkaç saat. Bu, Adım 4'te tartıştığımız
+  "kasıtlı duruş mu, gerçek arıza mı" ikileminde **duruş/bakım tarafını
+  güçlendiriyor**: rastgele bir sensör arızası dağınık, tekil anlar üretirdi
+  (zaman farkları çoğunlukla 10 dakikadan büyük çıkardı); burada tam tersi,
+  uzun kesintisiz bloklar var. Kesin kanıt değil (durum kodu kolonu yok) ama
+  güçlü bir istatistiksel ipucu.
