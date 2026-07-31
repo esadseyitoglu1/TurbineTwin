@@ -1,3 +1,7 @@
+import numpy as np
+
+from turbinetwin.config import CUT_IN, CUT_OUT
+
 def add_naive_deviation(df):
     # NAIVE ON PURPOSE: theoretical_power_kw == 0 near cut-in produces
     # NaN (0/0) or inf (nonzero/0) -- proven live, kept here so the failure
@@ -14,5 +18,18 @@ def add_normalized_deviation(df):
     # division-by-zero structurally impossible, not just guarded against.
     rated_power = df["theoretical_power_kw"].max()
     df["deviation_norm"] = (df["active_power_kw"] - df["theoretical_power_kw"]) / rated_power
+
+    return df
+
+
+def add_operating_state(df):
+    df["in_range"] = (df["wind_speed"] >= CUT_IN) & (df["wind_speed"] <= CUT_OUT)
+
+    # np.where(condition, value_if_true, value_if_false) -- a vectorized
+    # ternary. Nesting it lets us pick between 3 outcomes instead of 2.
+    df["state"] = np.where(
+        df["wind_speed"] < CUT_IN, "below_cut_in",
+        np.where(df["wind_speed"] > CUT_OUT, "above_cut_out", "normal"),
+    )
 
     return df

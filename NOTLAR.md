@@ -110,3 +110,22 @@ ve gerekçeleri buraya işleniyor.
   gerçek büyüklüğü yansıtan sayılar. Tüm veri setinde (`50530` satır) `inf`/`NaN`
   sayısı: **0**. Sabit ve sıfır olmayan payda, sıfıra bölmeyi yamamak yerine
   yapısal olarak imkânsız kılıyor.
+
+### Adım 6 — Çalışma durumu (cut-in/cut-out kuralı)
+
+- `add_operating_state()`: `in_range` (bool) ve `state` (`"below_cut_in"` /
+  `"normal"` / `"above_cut_out"`) kolonları eklendi. Sonuç: 42.780 satır
+  `normal`, 7.749 satır `below_cut_in`, sadece **1** satır `above_cut_out`
+  (25 m/s'i geçen tek an — gerçek fırtına seviyesinde rüzgarın ne kadar nadir
+  olduğunu doğruluyor).
+  `in_range` ile `state` çapraz kontrolü tutarlı: `normal` → her zaman `True`,
+  diğer ikisi → her zaman `False`.
+- **Bu adımın projedeki rolü:** `in_range`, sapma büyüklüğünden (`deviation_norm`)
+  bağımsız, ayrı bir kapı. Sebep: cut-in altında sensör gürültüsü/rölanti
+  davranışı hem küçük hem büyük sapmalar üretebilir, ama hiçbiri arıza
+  sayılmaz çünkü türbin zaten o bölgede çalışmıyor olması bekleniyor.
+  `deviation_norm` "ne kadar sapma var" sorusuna, `in_range` ise "bu sapmaya
+  güvenilir mi / burada bakmaya değer mi" sorusuna cevap veriyor — CEO'nun
+  röportajda bahsettiği "tasarım değerlerinden sapma" kavramının somut hali:
+  sadece istatistiksel olarak nadir noktaları değil, türbinin **kendi tasarım
+  kurallarına göre** çalışması gereken bölgede gerçekten sapan anları arıyoruz.
