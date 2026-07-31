@@ -191,3 +191,35 @@ ve gerekçeleri buraya işleniyor.
   (zaman farkları çoğunlukla 10 dakikadan büyük çıkardı); burada tam tersi,
   uzun kesintisiz bloklar var. Kesin kanıt değil (durum kodu kolonu yok) ama
   güçlü bir istatistiksel ipucu.
+
+### Adım 9 — Isolation Forest karşılaştırması
+
+- `run_isolation_forest()`: sadece `in_range=True` satırlarda, `[wind_speed,
+  active_power_kw]` üzerinde `IsolationForest(contamination=0.01,
+  random_state=42)` eğitildi. `predict` sonucu `-1`/`1` döndürüyor (`0`/`1`
+  değil) — `predictions == -1` ile `True`/`False`'a çevrildi. Sonuç, alt
+  kümenin index'i (`in_range_df.index`) üzerinden `.loc` ile orijinal `df`'e
+  geri yazıldı.
+- **Teknik tuzak:** `in_range=False` satırlarda `is_anomaly_iforest` hiç
+  yazılmadığı için pandas o hücreleri `NaN` bıraktı, bu da kolonun tipini
+  `bool` yerine `float`'a çevirdi (`NaN` bir float değeri). `~` (değilini al)
+  operatörü bu karışık kolonda `TypeError` verdi — çözüm, karşılaştırmadan
+  önce sadece `in_range` satırlarını alıp `.astype(bool)` ile tipi düzeltmek.
+- **Karşılaştırma sonucu (`pd.crosstab`, in_range satırlarında):** ikisi de
+  normal: 42.090, ikisi de anomali: **166**, sadece bizim: 262, sadece
+  IForest'in: 262. Yani bizim işaretlediğimiz 428 satırın sadece **%39'unda**
+  (166/428) IForest de aynı fikirde.
+- **Anlaşmazlığın anatomisi — iki grup incelendi:**
+  - *Sadece bizim işaretlediğimiz (262 satır):* rüzgar ort. 10.9 m/s, teorik
+    ~3186 kW beklenirken gerçek güç **medyan tam sıfır** — klasik "teoriğin
+    çok altında kalma", gerçek performans kaybı.
+  - *Sadece IForest'in işaretlediği (262 satır):* rüzgar ort. 20.6 m/s (çok
+    yüksek, nadir görülen), gerçek güç ort. 3307 kW — **teorik değere çok
+    yakın, bazen üstünde bile** (`theoretical_power_kw` std=0, hepsi platoda).
+  - **Yorum:** IForest teorik eğriyi hiç bilmiyor, sadece "bu nokta rüzgar-güç
+    uzayında seyrek bir bölgede mi" diye bakıyor. Yüksek rüzgar veri setinde
+    nadir olduğu için IForest bu noktaları "anomali" sayıyor, oysa türbin tam
+    beklendiği gibi (teorik platoda) çalışıyor. **"İstatistiksel olarak nadir"
+    ile "performansı düşük" farklı kavramlar** — bir bakım alarmı için bizim
+    kural tabanlı yöntemimiz (teorik eğriyi kullanan) daha güvenilir, çünkü
+    IForest'in işaretlediği "anomaliler" aslında sağlıklı ama nadir anlar.

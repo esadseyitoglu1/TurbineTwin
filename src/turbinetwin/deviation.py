@@ -1,4 +1,5 @@
 import numpy as np
+from sklearn.ensemble import IsolationForest
 
 from turbinetwin.config import CUT_IN, CUT_OUT
 
@@ -52,5 +53,22 @@ def derive_threshold(df):
 
 def flag_anomalies(df, threshold):
     df["is_anomaly"] = df["in_range"] & (df["deviation_norm"] < threshold)
+
+    return df
+
+
+def run_isolation_forest(df, contamination=0.01):
+    # Fit only on in_range rows -- otherwise the dense cluster of
+    # near-zero-wind/near-zero-power points below cut-in dominates and
+    # this stops being a fair comparison against our own in_range-only rule.
+    in_range_df = df[df["in_range"]]
+    X = in_range_df[["wind_speed", "active_power_kw"]]
+
+    model = IsolationForest(contamination=contamination, random_state=42)
+    predictions = model.fit_predict(X)  # returns -1 (anomaly) / 1 (normal), not 0/1
+
+    # predictions is aligned with in_range_df's row order; .loc with its
+    # .index writes each result back to the matching row in the full df.
+    df.loc[in_range_df.index, "is_anomaly_iforest"] = (predictions == -1)
 
     return df
