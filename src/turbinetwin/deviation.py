@@ -33,3 +33,18 @@ def add_operating_state(df):
     )
 
     return df
+
+
+def derive_threshold(df):
+    """Return (percentile_threshold, mean_minus_3sigma) computed only on
+    in_range rows. Percentile is rank-based, so a few extreme values can't
+    drag it around the way they inflate sigma and pull mean-3*sigma looser."""
+    in_range_deviation = df.loc[df["in_range"], "deviation_norm"]
+
+    percentile_threshold = np.nanpercentile(in_range_deviation, 1)
+
+    mean = in_range_deviation.mean()
+    std = in_range_deviation.std()
+    mean_minus_3sigma = mean - 3 * std
+
+    return percentile_threshold, mean_minus_3sigma

@@ -138,3 +138,23 @@ ve gerekçeleri buraya işleniyor.
   rüzgar zaten kendiliğinden geri düşmüş. Gerçek bir alarm durumu, rüzgarın
   **ardışık birden fazla ölçüm boyunca** 25 m/s üstünde kalmasına rağmen gücün
   düşmemesi olurdu — tek bir cut-out satırı tek başına yeterli kanıt değil.
+
+### Adım 7 — Dağılım + eşik türetimi
+
+- `derive_threshold()`: sadece `in_range=True` satırlarda (`df.loc[mask, col]`
+  ile filtrelenerek) `deviation_norm`'un 1. yüzdebirliği (`np.nanpercentile`)
+  ve ortalama−3σ yan yana hesaplandı.
+- **Gerçek veride sonuç:** 1. yüzdebirlik = **-0.784**, ortalama−3σ = **-0.441**.
+  Yüzdebirlik daha sıkı (daha negatif) çıktı çünkü dağılım çarpık: histogramda
+  ana yığın 0.0 civarında yoğunlaşmışken (~15.000 satır tek çubukta), sola
+  doğru ince ama uzun bir kuyruk var (-1.0'a kadar birkaç yüz satır).
+  `deviation_norm < -0.5` olan 990 satırın hepsi incelenince: rüzgar 13-15 m/s
+  (anma rüzgar hızının üstü, teorik tam 3600 kW) ama gerçek güç **tam sıfır**
+  — Adım 4'te grafikte gördüğümüz "teoriğin altında kalan bulut"un somut
+  karşılığı, muhtemelen ardışık satırlar halinde (uzun bir duruş dönemi).
+- **Neden yüzdebirlik daha güvenilir burada da doğrulandı:** ortalama ve σ,
+  bu uzun kuyruktaki aşırı değerlerden etkileniyor (σ şişiyor, eşik gevşiyor);
+  yüzdebirlik sıralamaya dayandığı için bu aşırı değerler eşiği kaydırmıyor,
+  sadece "en kötü %1"in neresi olduğunu doğru yansıtıyor.
+- `plot_deviation_distribution()`: histogram + eşik çizgisi (`ax.axvline`)
+  `outputs/figures/deviation_distribution.png`'ye kaydedildi.

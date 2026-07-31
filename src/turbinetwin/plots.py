@@ -32,3 +32,28 @@ def plot_power_curve(df: pd.DataFrame) -> None:
     fig.savefig(output_path, dpi=150)
     plt.close(fig)
     print(f"Saved: {output_path}")
+
+
+def plot_deviation_distribution(df: pd.DataFrame, percentile_threshold: float) -> None:
+    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Only in_range rows: below cut-in, deviation is noise around zero and
+    # would swamp the histogram with a meaningless spike.
+    in_range_deviation = df.loc[df["in_range"], "deviation_norm"]
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.hist(in_range_deviation, bins=50, color="steelblue")
+    ax.axvline(
+        x=percentile_threshold, color="red", linestyle="--",
+        label=f"1st percentile threshold ({percentile_threshold:.3f})",
+    )
+
+    ax.set_xlabel("deviation_norm")
+    ax.set_ylabel("Row count")
+    ax.set_title("Distribution of normalized deviation (in-range rows only)")
+    ax.legend()
+
+    output_path = FIGURES_DIR / "deviation_distribution.png"
+    fig.savefig(output_path, dpi=150)
+    plt.close(fig)
+    print(f"Saved: {output_path}")
