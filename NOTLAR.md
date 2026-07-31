@@ -129,3 +129,12 @@ ve gerekçeleri buraya işleniyor.
   röportajda bahsettiği "tasarım değerlerinden sapma" kavramının somut hali:
   sadece istatistiksel olarak nadir noktaları değil, türbinin **kendi tasarım
   kurallarına göre** çalışması gereken bölgede gerçekten sapan anları arıyoruz.
+- **Tek `above_cut_out` satırının incelenmesi:** 2018-02-04 00:10, rüzgar
+  25.21 m/s, güç hâlâ tam kapasitede (3600.78 kW) — ilk bakışta "pitch kontrolü
+  tepki vermemiş, tehlikeli" gibi görünebilir. Ama komşu satırlara bakınca
+  (23:40'tan 00:40'a kadar rüzgar 23-24 m/s bandında dolaşıyor, sadece bu tek
+  ölçümde 25.2'ye sıçramış) bunun **anlık bir rüzgar darbesi (gust)** olduğu
+  anlaşıldı — kontrol sisteminin tepki vermesi için yeterli süre bile geçmemiş,
+  rüzgar zaten kendiliğinden geri düşmüş. Gerçek bir alarm durumu, rüzgarın
+  **ardışık birden fazla ölçüm boyunca** 25 m/s üstünde kalmasına rağmen gücün
+  düşmemesi olurdu — tek bir cut-out satırı tek başına yeterli kanıt değil.
