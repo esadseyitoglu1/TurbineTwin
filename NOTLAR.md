@@ -158,3 +158,11 @@ ve gerekçeleri buraya işleniyor.
   sadece "en kötü %1"in neresi olduğunu doğru yansıtıyor.
 - `plot_deviation_distribution()`: histogram + eşik çizgisi (`ax.axvline`)
   `outputs/figures/deviation_distribution.png`'ye kaydedildi.
+- **İki eşiğin gerçekte işaretlediği satır sayısı:** yüzdebirlik (-0.784) →
+  **428 satır (%1.00)**; ortalama-3σ (-0.441) → **1152 satır (%2.69)**.
+  Ortalama-3σ, yüzdebirliğin **2.7 katı** kadar satırı işaretliyor. Histogramda
+  bu fark görsel olarak küçük duruyor (o bölgedeki çubuklar zaten kısa, gözle
+  ayırt etmesi zor) ama sayıca 724 satırlık bir oynama var. Pratik sonucu:
+  ortalama-3σ ile gidilseydi bakım ekibine ~2.7 kat daha fazla alarm gider,
+  bu da "alarm yorgunluğu" (alarm fatigue) riskini artırır. Yüzdebirliğin
+  daha sıkı/seçici olması, bilinçli tercih sebebimizin somut kanıtı.
