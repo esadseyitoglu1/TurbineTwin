@@ -223,3 +223,13 @@ ve gerekçeleri buraya işleniyor.
     ile "performansı düşük" farklı kavramlar** — bir bakım alarmı için bizim
     kural tabanlı yöntemimiz (teorik eğriyi kullanan) daha güvenilir, çünkü
     IForest'in işaretlediği "anomaliler" aslında sağlıklı ama nadir anlar.
+- **CEO'nun "tasarım değerlerinden sapma" kavramıyla bağlantı:** IForest'in
+  mantığı bu kavramın **karşıtı** — "istatistiksel olarak ne kadar sık
+  görüldüğüne" bakıyor, üreticinin belirlediği güç eğrisine hiç bakmıyor. O
+  262 satırda türbin tasarımına birebir uyuyor (teorik platoda); IForest'in
+  onları işaretlemesinin tek sebebi, o yıl güçlü rüzgarın nadiren esmiş
+  olması — türbinin davranışıyla değil, o yılki rüzgar istatistikleriyle
+  ilgili. Bir bakım mühendisine bu 262 satırı göndermek gereksiz kontrole
+  (false positive) yol açardı. Kural tabanlı yaklaşımımız (üreticinin güç
+  eğrisinden sapmayı ölçen) CEO'nun kastettiği kavramı IForest'ten daha
+  doğru yakalıyor — bu, projenin sklearn tutorial'larından ayrıldığı nokta.
