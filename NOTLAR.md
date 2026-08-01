@@ -318,3 +318,20 @@ gereksiz kontrole (false positive) yol açardı.
 
 10 adım, 19 commit, 3 grafik, 3 sanity test. Sıradaki: Faz 2 (FastAPI ile
 veriyi "canlı akıyormuş gibi" stream eden servis).
+
+## Faz 2 — Backend (FastAPI Streaming Servisi)
+
+### Adım 2.1 — Web Sunucusu ve API Kavramları
+
+Faz 1'de yazdığımız her şey bir **kütüphaneydi (library)**. Fonksiyonları yazdık, `run_phase1.py` içinde *biz* çağırdık, çalıştı, grafikleri üretti ve program kapandı.
+Faz 2'de ise bu fonksiyonları bir **API (Application Programming Interface)** haline getireceğiz. Yani kodumuzu **başkası** (bir web tarayıcısı, başka bir program vb.) çağıracak.
+
+Bunu yapmak için bir **Web Sunucusu (Web Server)** kuracağız. Temel kavramlar:
+
+- **İstemci (Client) ve Sunucu (Server):** Tarayıcı (veya Faz 3'te yazacağımız arayüz) istemcidir. Bizim FastAPI uygulamamız sunucudur. İstemci sorar, sunucu cevaplar.
+- **Sunucunun doğası:** Unity'deki oyun döngüsüne (`while(true)` / `Update()`) çok benzer. Ancak Unity kare hızına (fps) göre dönerken, web sunucusu ağ isteklerine (network requests) göre döner. Program hiç kapanmaz, sürekli açıktır, belli bir **portu** (örneğin 8000) dinler ve ağdan bir istek gelene kadar bekler.
+- **İstek (Request) ve Yanıt (Response):** İstemci bir istek gönderir. İsteğin bir adresi (Path: `/api/health`) ve türü (Method: `GET`) vardır. Sunucu ilgili kodu çalıştırır ve bir yanıt döndürür.
+- **Port ve 127.0.0.1:** 127.0.0.1 (localhost) kendi bilgisayarın anlamına gelir. IP adresini bir apartman olarak düşünürsek, Port (örn. 8000) o apartmandaki daire numarasıdır.
+- **HTTP Durum Kodları (Status Codes):** Yanıtın nasıl sonuçlandığının özetidir. 200 = Her şey yolunda, 404 = Sayfa bulunamadı, 422 = Geçersiz veri gönderildi, 500 = Sunucuda hata (bizim kodumuz patladı).
+- **JSON (JavaScript Object Notation):** Veri taşıma formatıdır. Python dict'lerine çok benzer ama dilden bağımsızdır.
+- **Uvicorn ve FastAPI iş bölümü:** Sunucu iki parçadır. `uvicorn` kapıcıdır, ağı dinler ve gelen paketleri karşılar. `FastAPI` ise yöneticidir, "bu paket `/api/health` adresine gelmiş, şu fonksiyonu çalıştırayım" diyerek yönlendirme (routing) yapar.
