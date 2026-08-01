@@ -335,3 +335,11 @@ Bunu yapmak için bir **Web Sunucusu (Web Server)** kuracağız. Temel kavramlar
 - **HTTP Durum Kodları (Status Codes):** Yanıtın nasıl sonuçlandığının özetidir. 200 = Her şey yolunda, 404 = Sayfa bulunamadı, 422 = Geçersiz veri gönderildi, 500 = Sunucuda hata (bizim kodumuz patladı).
 - **JSON (JavaScript Object Notation):** Veri taşıma formatıdır. Python dict'lerine çok benzer ama dilden bağımsızdır.
 - **Uvicorn ve FastAPI iş bölümü:** Sunucu iki parçadır. `uvicorn` kapıcıdır, ağı dinler ve gelen paketleri karşılar. `FastAPI` ise yöneticidir, "bu paket `/api/health` adresine gelmiş, şu fonksiyonu çalıştırayım" diyerek yönlendirme (routing) yapar.
+
+### Adım 2.2 — FastAPI Kurulumu ve İlk Endpoint
+
+- `pip install fastapi` ile pakedi kurduk. Hatırlarsan Adım 0'da sanal ortamı `--system-site-packages` ile kurmuştuk. Pandas/Numpy gibi paketler globalden gelirken, FastAPI direkt olarak bizim sanal ortamımıza (veya sistem izolasyonuna göre user site-packages'a) güvenle yüklendi.
+- `src/turbinetwin/api.py` dosyasını oluşturduk. İçinde türbinle ilgili hiçbir şey yok; amacımız sunucunun ayaklanabildiğini görmek.
+- **`@app.get(...)` Dekoratorü (Decorator):** Bu, Python'da var olan bir fonksiyona "sen artık `/api/health` adresine gelen GET isteklerine cevap vereceksin" deme yöntemidir. C# (Unity) dünyasındaki `[HttpGet("/api/health")]` attribute'una çok benzer. Dekoratorü kaldırırsak Python fonksiyonu hâlâ orada durur, ama web sunucusu ona giden yolu unutur.
+- **`async` kullanmadık:** Şu anki fonksiyonumuz düz `def health_check()`. FastAPI senkron fonksiyonları da harika yönetir. `async` (eşzamanlılık) kavramını gereksiz yere baştan eklemedik, Adım 2.7'de stream yaparken gerçek bir işe yaradığında kullanacağız.
+- **Otomatik JSON Dönüşümü:** Fonksiyonumuz sadece bir Python sözlüğü (`{"status": "ok"}`) döndürüyor. FastAPI bunu otomatik olarak JSON metnine çevirip tarayıcıya yollar. İstemci tarafındaki biri Python bilmese bile JSON'ı anlayabilir.
