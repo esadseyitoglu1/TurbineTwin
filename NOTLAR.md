@@ -233,3 +233,58 @@ ve gerekçeleri buraya işleniyor.
   (false positive) yol açardı. Kural tabanlı yaklaşımımız (üreticinin güç
   eğrisinden sapmayı ölçen) CEO'nun kastettiği kavramı IForest'ten daha
   doğru yakalıyor — bu, projenin sklearn tutorial'larından ayrıldığı nokta.
+
+## Ben Ne Anladım — Faz 1
+
+> **Not (süreç şeffaflığı için):** Bu bölüm normal akıştan farklı yazıldı.
+> Beş soruyu tek tek kendi cümleleriyle cevaplama sürecinde (payda/`in_range`
+> sıralaması üzerine iyi bir soru sorduktan sonra) yorulup "sen yaz, ben
+> kontrol ederim" dedi. Kural gereği bu normalde reddedilir (tanıma ≠ hatırlama,
+> mülakatta önünde bu metin olmayacak) ama tek seferlik bir esneme olarak kabul
+> edildi. **İleride benzer bir "sen yaz" isteği gelirse bu esneme referans
+> alınmasın** — varsayılan hâlâ "önce sen dene" olmalı.
+
+**1. Proje ne yapıyor:** Gerçek bir rüzgar türbininin 1 yıllık SCADA verisini
+kullanarak, her 10 dakikalık ölçümde **gerçek üretilen güç ile üreticinin
+belirlediği teorik güç eğrisi arasındaki sapmayı** hesaplıyor. Sapma, türbinin
+çalışması gereken bir rüzgar aralığındayken (cut-in/cut-out arası) yeterince
+büyükse, bu satır **bakım sinyali** olarak otomatik işaretleniyor. Aynı işi
+hem kendi kural tabanlı yöntemimizle hem sklearn'ün Isolation Forest'ıyla
+yapıp, ikisinin nerede anlaştığını/ayrıştığını karşılaştırıyoruz.
+
+**2. `deviation_norm` neden `deviation_rel` yerine:** `deviation_rel = (gerçek
+- teorik) / teorik`'te payda (teorik değer) cut-in altında sıfıra çok yakın
+veya tam sıfır oluyor — canlı olarak `NaN` (0/0) ve `inf` (sayı/0) ürettiğini
+gördük. `deviation_norm = (gerçek - teorik) / 3600`'de payda sabit ve asla
+sıfır olmadığı için bu patlama yapısal olarak imkânsız. Ayrıca istatistiksel
+olarak da farklı bir şey ölçüyorlar: aynı 25 kW'lık mutlak kayıp, düşük
+rüzgarda `deviation_rel`'i çok büyütüyor (küçük teorik değere bölündüğü için),
+`deviation_norm` ise rüzgar hızından bağımsız hep aynı ağırlıkta sayıyor —
+gerçek enerji kaybını daha tutarlı yansıtıyor.
+
+**3. `in_range` neden ayrı bir kontrol:** `deviation_norm` küçük olsa bile,
+büyük olsa bile, türbin zaten cut-in altında/cut-out üstünde çalışmaması
+gereken bir bölgedeyse, o sapmaya güvenmiyoruz. `in_range` **olduğu için**,
+türbinin tasarımı gereği kendini kapattığı anlar (örn. düşük rüzgarda sıfır
+üretim) anomali sayılmıyor — `in_range & (deviation_norm < threshold)`
+formülünde `in_range=False` olan satırlar otomatik `False` oluyor. Bu, "ne
+kadar sapma var" (deviation_norm) ile "bu sapmaya güvenilir mi" (in_range)
+sorularını ayırıyor; ikisi farklı sorular, biri diğerinin yerine geçemez.
+
+**4. Yüzdebirlik neden ortalama-3σ yerine:** Dağılımımız çarpık — ana yığın
+0'a yakın kümelenirken, -1.0'a kadar uzanan ince ama gerçek bir kuyruk var
+(990 satır < -0.5). Ortalama ve σ bu kuyruktaki aşırı değerlerden etkileniyor
+(σ şişiyor), bu da ortalama-3σ eşiğini gevşetiyor. Somut kanıt: yüzdebirlik
+eşiği 428 satır işaretlerken (%1), ortalama-3σ **1152 satır** (%2.69) —
+neredeyse 3 kat daha fazla, gerçekte alarm yorgunluğuna yol açardı. Yüzdebirlik
+sıralamaya dayandığı için bu aşırı değerlerden etkilenmiyor.
+
+**5. Isolation Forest farkı:** IForest teorik eğriyi hiç bilmiyor, sadece
+rüzgar-güç noktalarının 2 boyutlu uzayda ne kadar seyrek/yoğun olduğuna
+bakıyor. Bizim 428 anomalimizin sadece %39'unda (166/428) IForest de aynı
+fikirde. Geri kalan 262 satırda (sadece IForest'in işaretlediği) rüzgar çok
+yüksekti (~20 m/s) ama güç tam teorik platodaydı — türbin sağlıklıydı, IForest
+sadece o kadar yüksek rüzgarın nadir esmesi yüzünden işaretledi. Bu, CEO'nun
+"tasarım değerlerinden sapma" kavramının **karşıtı**: istatistiksel nadirlik,
+tasarımdan sapmayla aynı şey değil. Bakım ekibine bu 262 satırı göndermek
+gereksiz kontrole (false positive) yol açardı.
