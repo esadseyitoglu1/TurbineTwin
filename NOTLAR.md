@@ -288,3 +288,22 @@ sadece o kadar yüksek rüzgarın nadir esmesi yüzünden işaretledi. Bu, CEO'n
 "tasarım değerlerinden sapma" kavramının **karşıtı**: istatistiksel nadirlik,
 tasarımdan sapmayla aynı şey değil. Bakım ekibine bu 262 satırı göndermek
 gereksiz kontrole (false positive) yol açardı.
+
+### Adım 10 (devamı) — Sanity testleri
+
+- `pytest` venv'e kuruldu (`requirements.txt`'e eklendi) — Faz 1 boyunca ilk
+  kez venv'in izolasyonu gerçekten fark yarattı: paket sadece proje içinde,
+  global Python'a bulaşmadı.
+- 3 test yazıldı (`tests/test_deviation.py`): sıfıra yakın teorik → `inf`
+  üretmemeli, cut-in altı asla `is_anomaly=True` olmamalı, teoriğe tam uyan
+  satırda sapma = 0.
+- **Test yazarken gerçek bir hata bulundu:** ilk test tek satırlık bir sahte
+  veri (`theoretical_power_kw=0.0`) ile yazıldığında **başarısız oldu** —
+  çünkü `add_normalized_deviation()`, `RATED_POWER`'ı `theoretical_power_kw
+  .max()` ile hesaplıyor, ve tek satırlık veride bu `.max()` de `0.0` çıkıp
+  `RATED_POWER=0` oluyor, aynı `inf` hatasını farklı bir açıdan yeniden
+  üretiyor. Düzeltme: fixture'a anma-gücünde ikinci bir satır eklendi.
+  **Ders:** `RATED_POWER`'ı veriden türetmek (Adım 5'in kararı) gerçek,
+  büyük veri setinde güvenli ama **küçük/izole test verisinde gizli bir
+  varsayım** taşıyor — "en az bir satırda teorik değer anma gücünde olacak."
+  Bu varsayım testte açıkça görünür hale geldi.

@@ -2,3 +2,4 @@ pandas>=3.0
 numpy>=2.5
 scikit-learn>=1.9
 matplotlib>=3.11
+pytest>=9.0
