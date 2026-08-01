@@ -1,8 +1,37 @@
 # Wind Turbine Digital Twin (TurbineTwin)
 
-A prototype digital twin for wind turbine anomaly detection, built on real SCADA
-data. Compares actual power output against the manufacturer's theoretical power
-curve to flag deviations from design behavior.
+A prototype digital twin for wind turbine anomaly detection, built on real
+SCADA data from a wind farm in Turkey (2018, 10-minute resolution, ~50k
+records). Compares actual power output against the manufacturer's theoretical
+power curve to flag deviations from design behavior — the same problem
+described by Eksim Enerji's approach to digital twin technology: detecting
+when equipment drifts from its design values.
+
+## Why this approach
+
+The dataset ships with a manufacturer-provided theoretical power curve, so
+"expected output" doesn't need to be modeled — anomaly detection reduces
+directly to measuring `actual vs. theoretical` deviation. The core design
+decisions:
+
+- **Deviation is normalized by rated power** (`(actual - theoretical) /
+  rated_power`), not by the theoretical value itself. Dividing by the
+  theoretical value blows up near cut-in, where it approaches zero —
+  confirmed live during development (`inf`/`NaN` from division by near-zero).
+  A constant, nonzero denominator makes that failure structurally impossible.
+- **Cut-in/cut-out wind speeds define a trust boundary, not just a filter.**
+  Outside this range the turbine is expected to sit idle by design, not by
+  fault — flagging deviations there would be flagging the turbine for
+  behaving correctly.
+- **The anomaly threshold is derived from the data** (1st percentile of
+  in-range deviation), not hardcoded, and compared against a mean−3σ
+  alternative that turned out to flag 2.7x more rows due to the deviation
+  distribution's skew.
+- **A rule-based detector is compared against sklearn's Isolation Forest**
+  trained on the same in-range data. They agree on only 39% of flagged rows —
+  Isolation Forest flags rare-but-healthy high-wind operation (statistical
+  rarity), while the rule-based approach flags genuine underperformance
+  relative to the design curve. See `NOTLAR.md` for the full analysis.
 
 ## Setup
 
@@ -16,6 +45,52 @@ pip install -r requirements.txt
 
 See [data/raw/README.md](data/raw/README.md) for download instructions.
 
+## Running
+
+```powershell
+$env:PYTHONPATH = "src"
+python scripts/run_phase1.py
+pytest tests/
+```
+
+This loads the data, reports data quality, computes deviation metrics, derives
+an anomaly threshold, flags anomalies, and compares against Isolation Forest —
+saving three figures to `outputs/figures/`.
+
+## Results
+
+**Power curve** — measured output vs. the theoretical curve. The S-curve,
+cut-in knee (~3 m/s), and rated plateau (3600 kW) are visible, along with a
+dense underperformance cloud in the 5-12 m/s range.
+
+![Power curve](outputs/figures/power_curve.png)
+
+**Deviation distribution** — normalized deviation across in-range rows, with
+the derived 1st-percentile threshold marked. The distribution is skewed: a
+short tail down to -1.0 accounts for why percentile-based thresholding was
+chosen over mean−3σ.
+
+![Deviation distribution](outputs/figures/deviation_distribution.png)
+
+**Flagged anomalies** — 428 rows (≈1% of in-range data) cluster almost
+entirely in the 10-19 m/s band at near-zero power, despite the theoretical
+curve predicting 2000-3600 kW there.
+
+![Anomalies](outputs/figures/anomalies.png)
+
+## Project structure
+
+```
+src/turbinetwin/   # core logic: data loading, deviation metrics, anomaly
+                   # detection, plotting -- reused by later phases (API, MCP)
+scripts/           # entry points
+data/              # raw (gitignored) and processed data
+outputs/figures/   # generated plots (gitignored)
+tests/             # sanity tests
+NOTLAR.md          # detailed decision log and interview prep notes
+```
+
 ## Status
 
-Phase 1 (data + model) in progress.
+Phase 1 (data + model) complete. See `NOTLAR.md` for the full decision log.
+Next: Phase 2 (FastAPI streaming service).

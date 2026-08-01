@@ -307,3 +307,14 @@ gereksiz kontrole (false positive) yol açardı.
   büyük veri setinde güvenli ama **küçük/izole test verisinde gizli bir
   varsayım** taşıyor — "en az bir satırda teorik değer anma gücünde olacak."
   Bu varsayım testte açıkça görünür hale geldi.
+- **README.md profesyonel hale getirildi** (İngilizce, başvuru için sunum
+  metni): proje açıklaması, tasarım kararlarının kısa gerekçesi, kurulum/
+  çalıştırma talimatları (PowerShell ile canlı test edildi), üç grafiğin
+  gömülü hali, proje yapısı. `NOTLAR.md`'den farkı: README sonuç odaklı ve
+  dışarıdan bakan biri için, `NOTLAR.md` süreç odaklı ve mülakat savunması
+  için — ikisi farklı okuyucuya hizmet ediyor.
+
+## Faz 1 tamamlandı
+
+10 adım, 19 commit, 3 grafik, 3 sanity test. Sıradaki: Faz 2 (FastAPI ile
+veriyi "canlı akıyormuş gibi" stream eden servis).
