@@ -90,6 +90,19 @@ tests/             # sanity tests
 NOTLAR.md          # detailed decision log and interview prep notes
 ```
 
+## Future work
+
+The current API replays historical data (the full 2018 dataset, played back
+in timestamp order) rather than ingesting live measurements. Extending it to
+accept a real, continuously arriving feed (e.g. a new reading every 10
+minutes from an actual turbine) was considered and deliberately scoped out:
+it would require the in-memory `STATE` to become mutable under concurrent
+access — read by every request handler, written by whatever ingests new
+readings — which needs proper concurrency handling (locking or a
+message-queue-backed pipeline such as Kafka/RabbitMQ) to avoid race
+conditions. That's real infrastructure work, not a prototype-scale addition,
+so it was left out rather than half-implemented.
+
 ## Status
 
 Phase 1 (data + model) complete. See `NOTLAR.md` for the full decision log.

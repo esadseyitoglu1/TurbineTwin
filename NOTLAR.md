@@ -343,3 +343,20 @@ Bunu yapmak için bir **Web Sunucusu (Web Server)** kuracağız. Temel kavramlar
 - **`@app.get(...)` Dekoratorü (Decorator):** Bu, Python'da var olan bir fonksiyona "sen artık `/api/health` adresine gelen GET isteklerine cevap vereceksin" deme yöntemidir. C# (Unity) dünyasındaki `[HttpGet("/api/health")]` attribute'una çok benzer. Dekoratorü kaldırırsak Python fonksiyonu hâlâ orada durur, ama web sunucusu ona giden yolu unutur.
 - **`async` kullanmadık:** Şu anki fonksiyonumuz düz `def health_check()`. FastAPI senkron fonksiyonları da harika yönetir. `async` (eşzamanlılık) kavramını gereksiz yere baştan eklemedik, Adım 2.7'de stream yaparken gerçek bir işe yaradığında kullanacağız.
 - **Otomatik JSON Dönüşümü:** Fonksiyonumuz sadece bir Python sözlüğü (`{"status": "ok"}`) döndürüyor. FastAPI bunu otomatik olarak JSON metnine çevirip tarayıcıya yollar. İstemci tarafındaki biri Python bilmese bile JSON'ı anlayabilir.
+
+### Bilinçli kapsam dışı: gerçek zamanlı veri kabulü
+
+- Şu anki API bir **replay** (yeniden oynatma) sistemi — 2018'e ait, zaten
+  tamamlanmış veriyi zaman sırasına göre "canlıymış gibi" sunuyor. Gerçek bir
+  türbinden sürekli yeni ölçüm gelen (örn. her 10 dakikada bir) bir sisteme
+  genişletme fikri değerlendirildi ve **bilinçli olarak kapsam dışı bırakıldı**.
+- **Sebep:** `STATE`'i (Adım 2.3'te kuracağımız bellek-içi veri) yazılabilir
+  hale getirmek, eşzamanlılık (concurrency) sorununu açar — her istek onu
+  okurken, veri giren bir işlem aynı anda ona yazmaya çalışırsa çakışma riski
+  oluşur. Bunu doğru çözmek kilitleme mekanizmaları veya bir mesaj kuyruğu
+  (Kafka/RabbitMQ gibi) gerektirir — prototip ölçeğinin belirgin şekilde
+  ötesinde, gerçek altyapı işi.
+- **Karar tarzı:** CARE to Compare veri setini araştırıp T1.csv lehine
+  reddetmemizle aynı desen — "düşünmedik" değil, "düşündük, ölçtük/tarttık,
+  bilinçli olarak dışarıda bıraktık." README'ye de "Future Work" bölümü
+  olarak eklendi, başvuru sırasında görünür olsun diye.
