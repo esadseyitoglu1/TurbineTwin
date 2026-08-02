@@ -360,3 +360,29 @@ Bunu yapmak için bir **Web Sunucusu (Web Server)** kuracağız. Temel kavramlar
   reddetmemizle aynı desen — "düşünmedik" değil, "düşündük, ölçtük/tarttık,
   bilinçli olarak dışarıda bıraktık." README'ye de "Future Work" bölümü
   olarak eklendi, başvuru sırasında görünür olsun diye.
+
+### Adım 2.3 — Veriyi başlangıçta bir kez yükle (`lifespan`)
+
+- `@asynccontextmanager` ile `lifespan(app)` fonksiyonu yazıldı. **`yield`
+  satırının öncesi Unity'nin `Awake()`'i gibi** — sunucu ayağa kalkarken bir
+  kez çalışıyor: Faz 1'in tüm zinciri (`load_raw` → `add_normalized_deviation`
+  → `add_operating_state` → `derive_threshold` → `flag_anomalies` →
+  `run_isolation_forest`) burada işleniyor, sonucu `STATE` adlı modül
+  seviyesi bir dict'e yazılıyor. `yield`'den sonrası sunucu kapanırken
+  çalışan temizlik kodu.
+- `STATE` bilinçli olarak düz bir Python dict — `Map<string, object>` gibi
+  düşünülebilir. `app.state` (FastAPI'ye özgü, tipsiz) ve `Depends`
+  (dependency injection, bu ölçekte karşılıksız ek kavram) reddedildi.
+- **Isolation Forest başlangıçta çalıştırılıyor** (ölçülen maliyet ~0.4s,
+  bedava) ama API yanıtında **yer almayacak** — Adım 2.5'te bilerek `STATE`
+  içinde tutulup NaN duvarına canlı çarpılacak, sonra bir tasarım kararı
+  olarak (geçici çözüm değil) yanıttan çıkarılacak.
+- **Canlı doğrulama:** sunucu ayağa kaldırılıp `/api/health`'e istek atıldı,
+  yanıt `{"status":"ok","rows_loaded":50530}` — `lifespan`'in gerçekten
+  çalıştığının ve `STATE`'in dolduğunun kanıtı.
+- **Araç notu:** Bash arka plan job + `curl` kombinasyonu Windows'ta stdout'u
+  güvenilir yakalayamadı (boş çıktı); Python'un kendi `subprocess.Popen` +
+  `urllib.request`'i ile, **mutlak yol** ve doğru `cwd` vererek test edildi.
+  Göreli yol (`.venv/Scripts/python.exe`) `subprocess.Popen`'de
+  `FileNotFoundError` verdi — bash'in `cd` ile değiştirdiği çalışma dizini,
+  Windows'un `CreateProcess` API çağrısına farklı şekilde ulaşıyor.
