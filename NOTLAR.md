@@ -412,3 +412,29 @@ Bunu yapmak için bir **Web Sunucusu (Web Server)** kuracağız. Temel kavramlar
   hatanın *nerede* ortaya çıktığı planımızdan farklı çıktı. **Ders:** varsayımı
   ("X çökecek") canlı test etmeden plana yazmak riskli — gerçek davranış bazen
   kütüphanenin kendi iç güvenlik ağı yüzünden farklı bir yerden patlıyor.
+
+### Adım 2.5 — Serileştirmeyi elle düzelt (SEN YAZDIN)
+
+- `src/turbinetwin/serialization.py` → `row_to_dict(row)`: 7 alan
+  (`timestamp`, `wind_speed`, `active_power_kw`, `theoretical_power_kw`,
+  `deviation_norm`, `in_range`, `is_anomaly`) elle seçilip döndürülüyor.
+  `is_anomaly_iforest` **bilerek dışarıda** — Faz 1'de zaten "analiz artefaktı,
+  canlı ikiz sinyali değil" kararı verilmişti, bu da Adım 2.4'teki 500 hatasını
+  aynı anda çözüyor (bir tasarım kararının yan etkisi, geçici çözüm değil).
+- **`bool(row["in_range"])` neden gerekli — canlı doğrulandı:**
+  `np.bool_(True)` ile `bool(np.bool_(True))` **aynı değeri** taşıyor
+  (`True == True`) ama **farklı tipte**: `numpy.bool` vs `bool`. `json.dumps`
+  sadece Python'un kendi yerleşik tiplerini tanıyor; `np.bool_` üzerinde
+  `TypeError` verirken, `bool(...)`'a çevrilmiş hali `{"v": true}` üretiyor.
+  `bool(...)` çağrısı **sayıya çevirmiyor** (1/0 değil), sadece numpy'nin özel
+  kutusundan Python'un standart kutusuna taşıyor.
+- **`wind_speed`/`active_power_kw` gibi float alanlar elle `float(...)`'a
+  çevrilmedi** — Adım 2.0'da zaten `np.float64`'ün `json.dumps`'ta sorunsuz
+  çalıştığı doğrulanmıştı, `np.bool_`'un aksine.
+- `get_window` içinde `.to_dict(orient="records")` yerine
+  `[row_to_dict(row) for _, row in rows.iterrows()]` kullanıldı. `.iterrows()`
+  bir DataFrame'in satırları üzerinde `(index, row)` çiftleri olarak dönmeyi
+  sağlıyor; index kullanılmadığı için `_` ile işaretlendi.
+- **Canlı doğrulama:** hem normal bir satır (0-2) hem de daha önce 500
+  hatası veren cut-in altı satır (384, `in_range=false`) test edildi —
+  **ikisi de artık 200 OK**, NaN kaynaklı çökme tamamen ortadan kalktı.

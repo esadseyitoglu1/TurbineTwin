@@ -7,6 +7,7 @@ from turbinetwin.deviation import (
     add_normalized_deviation, add_operating_state, derive_threshold, flag_anomalies,
     run_isolation_forest,
 )
+from turbinetwin.serialization import row_to_dict
 
 # Module-level dict, filled once by lifespan below -- the "Awake()" of this
 # server. Every request handler reads from it; nothing writes to it after
@@ -43,4 +44,4 @@ def health_check():
 @app.get("/api/window")
 def get_window(start: int = 0, limit: int = 100):
     rows = STATE["df"].iloc[start:start + limit]
-    return rows.to_dict(orient="records")
+    return [row_to_dict(row) for _, row in rows.iterrows()]
