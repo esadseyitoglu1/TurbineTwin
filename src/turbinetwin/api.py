@@ -7,6 +7,7 @@ from turbinetwin.deviation import (
     add_normalized_deviation, add_operating_state, derive_threshold, flag_anomalies,
     run_isolation_forest,
 )
+from turbinetwin.schemas import TurbinePoint
 from turbinetwin.serialization import row_to_dict
 
 # Module-level dict, filled once by lifespan below -- the "Awake()" of this
@@ -41,7 +42,7 @@ def health_check():
     return {"status": "ok", "rows_loaded": len(STATE["df"])}
 
 
-@app.get("/api/window")
+@app.get("/api/window", response_model=list[TurbinePoint])
 def get_window(start: int = 0, limit: int = 100):
     rows = STATE["df"].iloc[start:start + limit]
     return [row_to_dict(row) for _, row in rows.iterrows()]

@@ -438,3 +438,24 @@ Bunu yapmak için bir **Web Sunucusu (Web Server)** kuracağız. Temel kavramlar
 - **Canlı doğrulama:** hem normal bir satır (0-2) hem de daha önce 500
   hatası veren cut-in altı satır (384, `in_range=false`) test edildi —
   **ikisi de artık 200 OK**, NaN kaynaklı çökme tamamen ortadan kalktı.
+
+### Adım 2.6 — Pydantic yanıt modeli
+
+- `src/turbinetwin/schemas.py` → `TurbinePoint(BaseModel)`: 7 alan, C#/Java
+  DTO'suna birebir benzeyen bir tipli sınıf. `@app.get("/api/window",
+  response_model=list[TurbinePoint])` ile FastAPI'ye "bu endpoint'in
+  döndürdüğü her şey bu şemaya süzülsün" dendi.
+- **`bool(row["in_range"])` gibi elle dönüşümler `serialization.py`'den
+  kaldırıldı** — Pydantic, `np.bool_`'u otomatik olarak Python `bool`'una
+  çeviriyor. Canlı doğrulandı: `bool(...)` sarmalaması olmadan bile yanıtta
+  `in_range`/`is_anomaly` doğru şekilde `true`/`false` çıktı.
+- **`deviation_pct` = `deviation_norm * 100`** — brief "sapma yüzdesi" istediği
+  için API sözleşmesi, iç kolon adından (`deviation_norm`) bilerek farklı.
+  Canlı doğrulandı: `deviation_norm=-0.0100781` iken `deviation_pct=-1.0078`.
+- **`is_anomaly_iforest` hâlâ yanıtta yok** — ama artık sadece bizim onu
+  `row_to_dict()`'e eklemememize değil, `TurbinePoint` şemasında hiç
+  tanımlanmamasına bağlı: yanlışlıkla `row_to_dict()`'e eklense bile,
+  Pydantic onu şemada olmadığı için sessizce **filtreler**, sızdırmaz.
+- **`/openapi.json` üzerinden doğrulandı:** `TurbinePoint` şeması tam olarak
+  7 alanı, tiplerini (`string`/`number`/`boolean`) ve `required` listesini
+  içeriyor — `/docs` (Swagger UI) bunu görsel bir tablo olarak render edecek.
