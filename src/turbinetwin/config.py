@@ -11,3 +11,7 @@ FIGURES_DIR = PROJECT_ROOT / "outputs" / "figures"
 # turbine is expected to produce ~0 power by design, not by fault.
 CUT_IN = 3.0
 CUT_OUT = 25.0
+
+# Seconds of real time between two consecutive stream emissions at speed=1x.
+SIMULATED_INTERVAL_SECONDS = 1.0
+DEFAULT_SPEED = 1

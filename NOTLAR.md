@@ -483,3 +483,34 @@ Bunu yapmak için bir **Web Sunucusu (Web Server)** kuracağız. Temel kavramlar
   otomatik yaptığı JSON dönüşümünü, burada (SSE formatını elle kurduğumuz
   için) kendimiz çağırıyoruz. `TurbinePoint(**row_to_dict(row))` ile önce
   gerçek bir Pydantic nesnesi oluşturup sonra JSON'a çeviriyoruz.
+
+### Adım 2.8 — Hız kontrolü
+
+- `config.py`'ye `SIMULATED_INTERVAL_SECONDS = 1.0` eklendi. `event_generator`,
+  `interval = SIMULATED_INTERVAL_SECONDS / speed` formülüyle bekleme süresini
+  hesaplıyor; `/api/stream?speed=1|10|100`.
+- **Planımız `Literal[1, 10, 100]` kullanmayı öngörmüştü, ama canlı test
+  bunun çalışmadığını gösterdi:** Pydantic 2.13.4, query parametresinden gelen
+  string `"10"`'u int-tipli `Literal` üyelerine **otomatik çevirmiyor** —
+  hem FastAPI üzerinden hem doğrudan Pydantic'e karşı test edilip doğrulandı
+  (`Test(speed="10")` bile `ValidationError` veriyor: "Input should be
+  1, 10 or 100", `input_type=str`). `Query(default=1)` ile sarmalamak da
+  sorunu çözmedi.
+- **Çözüm:** `speed: int = 1` (normal int, otomatik string→int dönüşümü
+  çalışıyor) + elle yazılmış bir kontrol: `if speed not in (1, 10, 100):
+  raise HTTPException(422, ...)`. Aynı sonucu (422) veriyor ama doğrulamayı
+  kütüphaneye değil bizim kodumuza bırakıyor. **Ders:** planlanan bir kütüphane
+  davranışını canlı doğrulamadan güvenmek riskli — burada iki farklı yaklaşım
+  (Literal, Query) denenip ikisi de beklendiği gibi çalışmayınca üçüncü,
+  garantili bir yola geçildi.
+- **Canlı ölçüm — `speed=10`:** satırlar arası gerçek süre ~0.11-0.12s
+  (teorik: 0.1s) — yakın.
+- **Canlı ölçüm — `speed=100`, planlanan Windows zamanlayıcı sınırı
+  doğrulandı:** teorik bekleme `1/100 = 0.01s` iken, **gerçek ortalama
+  0.0186s** ölçüldü (ilk birkaç değer daha yüksek, sonra ~0.015s'de
+  kararlılaştı) — yaklaşık **%86 daha yavaş**, tam olarak Windows'un ~15ms
+  zamanlayıcı çözünürlüğü sınırına denk geliyor. Yani `speed=100` pratikte
+  gerçek 100x değil, ~54x civarı bir hızlanma sağlıyor. Teoriyle tam
+  uyuşmayan, ölçülüp dürüstçe kaydedilen bir bulgu.
+- `speed=7` gibi geçersiz bir değer canlı test edildi, `422` ve açıklayıcı
+  mesaj (`"speed must be one of (1, 10, 100)"`) doğrulandı.

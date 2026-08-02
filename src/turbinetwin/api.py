@@ -2,9 +2,10 @@ import asyncio
 import json
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 
+from turbinetwin.config import SIMULATED_INTERVAL_SECONDS
 from turbinetwin.data_loader import load_raw
 from turbinetwin.deviation import (
     add_normalized_deviation, add_operating_state, derive_threshold, flag_anomalies,
@@ -51,15 +52,25 @@ def get_window(start: int = 0, limit: int = 100):
     return [row_to_dict(row) for _, row in rows.iterrows()]
 
 
-async def event_generator():
+async def event_generator(speed: int):
     # async generator: yields one SSE record, then awaits (yielding control
     # to the event loop -- NOT blocking it, unlike time.sleep) before the next.
+    interval = SIMULATED_INTERVAL_SECONDS / speed
     for _, row in STATE["df"].iterrows():
         point = TurbinePoint(**row_to_dict(row))
         yield f"data: {point.model_dump_json()}\n\n"
-        await asyncio.sleep(1)  # fixed 1x for now; speed control comes in Step 2.8
+        await asyncio.sleep(interval)
+
+
+VALID_SPEEDS = (1, 10, 100)
 
 
 @app.get("/api/stream")
-async def stream_data():
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+async def stream_data(speed: int = 1):
+    # Literal[1, 10, 100] looks cleaner but Pydantic 2.13 rejects the
+    # string "10" -> int 10 coercion for int-typed Literal members here
+    # (verified directly against Pydantic, not just FastAPI) -- so the
+    # allowed-values check is done by hand instead.
+    if speed not in VALID_SPEEDS:
+        raise HTTPException(status_code=422, detail=f"speed must be one of {VALID_SPEEDS}")
+    return StreamingResponse(event_generator(speed), media_type="text/event-stream")
