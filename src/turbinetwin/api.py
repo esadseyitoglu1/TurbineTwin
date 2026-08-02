@@ -38,3 +38,9 @@ app = FastAPI(title="TurbineTwin API", lifespan=lifespan)
 @app.get("/api/health")
 def health_check():
     return {"status": "ok", "rows_loaded": len(STATE["df"])}
+
+
+@app.get("/api/window")
+def get_window(start: int = 0, limit: int = 100):
+    rows = STATE["df"].iloc[start:start + limit]
+    return rows.to_dict(orient="records")

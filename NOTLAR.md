@@ -386,3 +386,29 @@ Bunu yapmak için bir **Web Sunucusu (Web Server)** kuracağız. Temel kavramlar
   Göreli yol (`.venv/Scripts/python.exe`) `subprocess.Popen`'de
   `FileNotFoundError` verdi — bash'in `cd` ile değiştirdiği çalışma dizini,
   Windows'un `CreateProcess` API çağrısına farklı şekilde ulaşıyor.
+
+### Adım 2.4 — Pencere endpoint'i, planı düzelten canlı bulgu
+
+- `/api/window?start=0&limit=100` eklendi: `start`/`limit` query parametreleri
+  (tip ipucu → otomatik doğrulama), `.iloc[start:start+limit]`,
+  `.to_dict(orient="records")`.
+- **Planımızın yanıldığı nokta:** `pd.Timestamp`'in JSON'a çevrilemeyeceği için
+  çökeceğini bekliyorduk. **Çökmedi.** Sebebi canlı incelendi: `pd.Timestamp`,
+  Python'un yerleşik `datetime.datetime` sınıfından türetilmiş
+  (`isinstance(ts, datetime)` → `True`), ve FastAPI'nin kendi
+  `jsonable_encoder`'ı bu tipi tanıyıp otomatik olarak ISO-8601 string'ine
+  çeviriyor (`2018-01-01T00:00:00`). Düz `json.dumps()` bunu yapamazdı
+  (Adım 2.0'da test etmiştik) ama FastAPI'nin sarmalayıcısı daha akıllı.
+- **Gerçek çökme, beklenen yerden değil `is_anomaly_iforest`'ten geldi:**
+  `?start=384&limit=1` (cut-in altı bir satır, Faz 1'den biliniyor) istendiğinde
+  sunucu **500 Internal Server Error** verdi: `ValueError: Out of range float
+  values are not JSON compliant: nan`.
+- **Bu, planlanan NaN tuzağının aynısı ama farklı bir katmanda yakalandı:**
+  düz `json.dumps()` NaN'ı sessizce geçersiz JSON'a çevirir (`{"v": NaN}`,
+  daha önce doğrulanmıştı); FastAPI'nin kendi serileştiricisi ise NaN'ı görünce
+  **hata fırlatıyor** (muhtemelen `allow_nan=False` ile çağırıyor). Yani FastAPI
+  bizi sessiz bozukluktan koruyor ama yine de biz bu hatayı çözmek zorundayız —
+  ders aynı kalıyor (`is_anomaly_iforest`'i yanıttan çıkarmak, Adım 2.5), sadece
+  hatanın *nerede* ortaya çıktığı planımızdan farklı çıktı. **Ders:** varsayımı
+  ("X çökecek") canlı test etmeden plana yazmak riskli — gerçek davranış bazen
+  kütüphanenin kendi iç güvenlik ağı yüzünden farklı bir yerden patlıyor.
