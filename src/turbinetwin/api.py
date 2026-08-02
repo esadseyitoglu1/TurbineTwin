@@ -1,6 +1,9 @@
+import asyncio
+import json
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 
 from turbinetwin.data_loader import load_raw
 from turbinetwin.deviation import (
@@ -46,3 +49,17 @@ def health_check():
 def get_window(start: int = 0, limit: int = 100):
     rows = STATE["df"].iloc[start:start + limit]
     return [row_to_dict(row) for _, row in rows.iterrows()]
+
+
+async def event_generator():
+    # async generator: yields one SSE record, then awaits (yielding control
+    # to the event loop -- NOT blocking it, unlike time.sleep) before the next.
+    for _, row in STATE["df"].iterrows():
+        point = TurbinePoint(**row_to_dict(row))
+        yield f"data: {point.model_dump_json()}\n\n"
+        await asyncio.sleep(1)  # fixed 1x for now; speed control comes in Step 2.8
+
+
+@app.get("/api/stream")
+async def stream_data():
+    return StreamingResponse(event_generator(), media_type="text/event-stream")

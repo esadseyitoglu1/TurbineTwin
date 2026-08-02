@@ -459,3 +459,27 @@ Bunu yapmak için bir **Web Sunucusu (Web Server)** kuracağız. Temel kavramlar
 - **`/openapi.json` üzerinden doğrulandı:** `TurbinePoint` şeması tam olarak
   7 alanı, tiplerini (`string`/`number`/`boolean`) ve `required` listesini
   içeriyor — `/docs` (Swagger UI) bunu görsel bir tablo olarak render edecek.
+
+### Adım 2.7 — SSE Stream + Async Generator
+
+- `event_generator()`: `async def` + `yield` ile bir **async generator**
+  yazıldı — her satırda bir `TurbinePoint` üretip SSE formatında
+  (`data: {...}\n\n`) yolluyor, sonra `await asyncio.sleep(1)` ile "bekliyorum,
+  event loop başka işe baksın" diyor. `/api/stream` endpoint'i bunu
+  `StreamingResponse(..., media_type="text/event-stream")` ile sarmalıyor.
+- **`yield`'in iki farklı kullanımı ayrıştırıldı:** Adım 2.3'teki `lifespan`
+  içinde `yield` **bir kez** duruyordu (başlangıç/bitiş ayırıcı); burada
+  **her satırda bir kez**, tekrar tekrar duruyor (generator). Aynı anahtar
+  kelime, farklı bağlamda farklı iş görüyor.
+- **Canlı doğrulama 1 — artımlı akış:** stream'in ilk 3 satırı okunup varış
+  zamanları ölçüldü: `0.02s`, `1.04s`, `2.05s` — satırlar gerçekten ~1 saniye
+  arayla geliyor, tek seferde dökülmüyor.
+- **Canlı doğrulama 2 — event loop kilitlenmiyor:** stream bağlantısı açık
+  tutulurken (arka plan thread'inde), aynı anda `/api/health`'e istek atıldı
+  ve **0.001 saniyede** cevap geldi. Bu, `await asyncio.sleep(1)`'in event
+  loop'u bloklamadığının somut kanıtı — `time.sleep(1)` kullansaydık bu istek,
+  stream'in beklemesi bitene kadar askıda kalırdı.
+- `point.model_dump_json()` — Adım 2.6'da FastAPI'nin `response_model=` ile
+  otomatik yaptığı JSON dönüşümünü, burada (SSE formatını elle kurduğumuz
+  için) kendimiz çağırıyoruz. `TurbinePoint(**row_to_dict(row))` ile önce
+  gerçek bir Pydantic nesnesi oluşturup sonra JSON'a çeviriyoruz.
