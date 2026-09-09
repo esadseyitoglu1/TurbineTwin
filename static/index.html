@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>TurbineTwin</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; background: #0f1117; color: #e6e6e6; }
+    h1 { font-weight: 600; }
+    #chart-wrap { max-width: 900px; height: 420px; }
+  </style>
+</head>
+<body>
+  <h1>TurbineTwin — Live Power Curve</h1>
+  <div id="chart-wrap">
+    <canvas id="powerChart"></canvas>
+  </div>
+
+  <script>
+    // MAX_POINTS: keep the chart to a rolling window instead of growing
+    // forever -- the stream replays ~50k rows, and an unbounded dataset
+    // would eventually stall the browser's own render loop.
+    const MAX_POINTS = 120;
+
+    const ctx = document.getElementById("powerChart").getContext("2d");
+    const chart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: "Measured (kW)",
+            data: [],
+            borderColor: "#4fd1c5",
+            backgroundColor: "transparent",
+            tension: 0.2,
+            pointRadius: 0,
+          },
+          {
+            label: "Theoretical (kW)",
+            data: [],
+            borderColor: "#a0aec0",
+            backgroundColor: "transparent",
+            borderDash: [4, 4],
+            tension: 0.2,
+            pointRadius: 0,
+          },
+        ],
+      },
+      options: {
+        animation: false, // a new point arrives every ~1s (speed=1) -- animating each shift is wasted work
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { ticks: { color: "#a0aec0", maxTicksLimit: 8 } },
+          y: { ticks: { color: "#a0aec0" }, title: { display: true, text: "kW", color: "#a0aec0" } },
+        },
+        plugins: { legend: { labels: { color: "#e6e6e6" } } },
+      },
+    });
+
+    function addPoint(point) {
+      const label = point.timestamp.slice(11, 16); // HH:MM from ISO timestamp
+      chart.data.labels.push(label);
+      chart.data.datasets[0].data.push(point.active_power_kw);
+      chart.data.datasets[1].data.push(point.theoretical_power_kw);
+
+      if (chart.data.labels.length > MAX_POINTS) {
+        chart.data.labels.shift();
+        chart.data.datasets[0].data.shift();
+        chart.data.datasets[1].data.shift();
+      }
+      chart.update("none"); // "none" skips animation on this update, same reasoning as options.animation above
+    }
+
+    // EventSource is the browser's built-in SSE client -- no library needed.
+    // Same-origin (this page is served by the same FastAPI app as /api/stream),
+    // so no CORS setup is required.
+    const source = new EventSource("/api/stream?speed=10");
+    source.onmessage = (event) => {
+      addPoint(JSON.parse(event.data));
+    };
+    source.onerror = () => {
+      console.error("Stream connection lost.");
+    };
+  </script>
+</body>
+</html>

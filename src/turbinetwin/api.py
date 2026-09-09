@@ -4,8 +4,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
-from turbinetwin.config import SIMULATED_INTERVAL_SECONDS
+from turbinetwin.config import PROJECT_ROOT, SIMULATED_INTERVAL_SECONDS
 from turbinetwin.data_loader import load_raw
 from turbinetwin.deviation import (
     add_normalized_deviation, add_operating_state, derive_threshold, flag_anomalies,
@@ -74,3 +75,12 @@ async def stream_data(speed: int = 1):
     if speed not in VALID_SPEEDS:
         raise HTTPException(status_code=422, detail=f"speed must be one of {VALID_SPEEDS}")
     return StreamingResponse(event_generator(speed), media_type="text/event-stream")
+
+
+# Mounted last and deliberately: a mount on "/" would otherwise shadow every
+# /api/* route registered after it (FastAPI matches routes in registration
+# order). Serves the Phase 3 dashboard (plain HTML/JS, no build step) from
+# the same origin as the API -- same-origin means no CORS setup needed for
+# EventSource/fetch calls from the page back to /api/*. html=True makes "/"
+# resolve to static/index.html automatically.
+app.mount("/", StaticFiles(directory=PROJECT_ROOT / "static", html=True), name="static")

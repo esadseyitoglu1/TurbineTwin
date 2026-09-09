@@ -548,3 +548,73 @@ eksikti) — yani repoyu klonlayan biri `pytest tests/` bile çalıştıramazdı
 8 alt-adım (2.1–2.8) + kapanış (2.9), toplamda backend artık hem çalışıyor
 hem test edilmiş hem çalıştırılabilir durumda. Sıradaki: Faz 3 (dashboard /
 istemci tarafı arayüz, `/api/stream`'i tüketip canlıymış gibi görselleştiren).
+
+## Faz 3 — Dashboard (Vanilla JS, build adımı yok)
+
+**Karar:** React değil. Bu ölçekte (1 sayfa, 1 veri kaynağı, birkaç görsel
+eleman) React'ın çözdüğü problem — çoklu bileşen arası state yönetimi — hiç
+yok; backend zaten tek state kaynağı (`STATE`). `EventSource` tarayıcının
+yerleşik SSE istemcisi, hiçbir kütüphane gerektirmiyor. Faz 1/2'deki
+"karmaşıklığı sadece gerekçesi varsa ekle" deseniyle aynı karar tarzı
+(IForest karşılaştırmasında da görüldüğü gibi, daha gelişmiş araç otomatik
+olarak daha doğru cevap vermiyor).
+
+### Adım 3.1 — Statik dosya servisi
+
+- `static/index.html` (yer tutucu) oluşturuldu, `src/turbinetwin/api.py`'ye
+  `app.mount("/", StaticFiles(directory=PROJECT_ROOT / "static",
+  html=True), name="static")` eklendi.
+- **Sıra bilinçli olarak son:** mount, tüm `/api/*` route'larından **sonra**
+  tanımlandı. FastAPI route'ları kayıt sırasına göre eşleştiriyor — `/` bir
+  mount ile en başta tanımlansaydı, ondan sonra gelen her `/api/*` isteği de
+  bu mount'a düşüp 404 (statik dosya olarak `api/health` aranıp
+  bulunamayacağı için) verebilirdi. Bu yüzden mount dosyanın en altına,
+  `stream_data`'dan sonraya konuldu.
+- `html=True`: `/` isteği otomatik olarak `static/index.html`'e çözülüyor,
+  elle bir `@app.get("/")` yazmaya gerek kalmadı.
+- **Same-origin, CORS yok:** sayfa da API de aynı `uvicorn` sürecinden,
+  aynı origin'den (`127.0.0.1:8123`) servis ediliyor. Bu yüzden sayfadaki
+  JS'in `/api/stream`'e `EventSource` ile bağlanması için CORS ayarı
+  (`CORSMiddleware`) gerekmiyor — farklı bir origin'den (örn. ayrı bir
+  frontend sunucusu, `localhost:3000` gibi) servis edilseydi gerekirdi.
+- **Canlı doğrulama:** `uvicorn` `subprocess.Popen` ile ayağa kaldırıldı
+  (Adım 2.3'teki gibi mutlak yol + doğru `cwd` ile), hem `/` (200,
+  `text/html`, sayfa içeriği doğru) hem `/api/health` (200,
+  `{"status":"ok","rows_loaded":50530}`) test edildi — mount'un `/api/*`
+  route'larını gölgelemediği kanıtlandı.
+- Mevcut 9 test (`pytest tests/`) hâlâ geçiyor — statik dosya değişikliği
+  API davranışını bozmadı.
+
+### Adım 3.2 — Canlı güç eğrisi grafiği
+
+- `static/index.html` gerçek içerikle dolduruldu: Chart.js (CDN'den,
+  `<script src="https://cdn.jsdelivr.net/...">`, `npm install` yok) ile
+  çizilen bir çizgi grafik, `EventSource` ile `/api/stream?speed=10`'a
+  bağlanıp her `data:` olayında ölçülen ve teorik gücü grafiğe ekliyor.
+- **`EventSource` neden tercih edildi:** SSE için tarayıcının **yerleşik**
+  istemcisi — `fetch`/websocket kütüphanesi gibi bir şey kurmaya gerek
+  yok. `onmessage` callback'i her `data: ...\n\n` bloğunda otomatik
+  tetikleniyor, bağlantı koptuğunda **kendiliğinden yeniden bağlanmayı da**
+  deniyor (bizim elle yazmadığımız bir davranış).
+  - **`MAX_POINTS = 120` ile kayan pencere:** stream ~50.530 satırı
+    oynatıyor; grafiğin veri dizisini sınırsız büyütmek tarayıcının kendi
+    render döngüsünü zamanla durma noktasına getirirdi. Her yeni noktada
+    en eski nokta `shift()` ile atılıyor — sabit boyutlu bir "kayan pencere"
+    (rolling window).
+- **`chart.update("none")` ve `options.animation: false`:** Chart.js
+  varsayılan olarak her güncellemeyi animasyonla çiziyor. `speed=10`'da
+  saniyede birkaç nokta geldiği için her birini animasyonla kaydırmak
+  gereksiz iş — kapatılınca grafik anında güncelleniyor, CPU'yu boşuna
+  meşgul etmiyor.
+- **Same-origin doğrulandı:** sayfa da API de aynı `uvicorn` sürecinden
+  (`app.mount` Adım 3.1) servis edildiği için `EventSource("/api/stream")`
+  göreli bir yol — CORS ayarı hiç gerekmedi.
+- **Canlı doğrulama:** sunucu ayağa kaldırılıp (1) `/`'in döndürdüğü HTML
+  içinde hem `chart.umd.min.js` referansının hem `EventSource` çağrısının
+  bulunduğu, (2) `/api/stream?speed=100`'den okunan ilk iki satırın
+  sayfanın beklediği alan adlarıyla (`timestamp`, `active_power_kw`,
+  `theoretical_power_kw`) birebir eşleştiği doğrulandı. Tarayıcı içi
+  render (grafiğin görsel olarak doğru çizilmesi) bu ortamda test
+  edilemedi — bir sonraki adımda tarayıcıda elle kontrol edilmeli.
+- Mevcut 9 test hâlâ geçiyor — bu adım sadece `static/`'i değiştirdi,
+  backend'e dokunmadı.
