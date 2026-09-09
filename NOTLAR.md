@@ -613,9 +613,10 @@ olarak daha doğru cevap vermiyor).
   içinde hem `chart.umd.min.js` referansının hem `EventSource` çağrısının
   bulunduğu, (2) `/api/stream?speed=100`'den okunan ilk iki satırın
   sayfanın beklediği alan adlarıyla (`timestamp`, `active_power_kw`,
-  `theoretical_power_kw`) birebir eşleştiği doğrulandı. Tarayıcı içi
-  render (grafiğin görsel olarak doğru çizilmesi) bu ortamda test
-  edilemedi — bir sonraki adımda tarayıcıda elle kontrol edilmeli.
+  `theoretical_power_kw`) birebir eşleştiği doğrulandı. **Tarayıcı içi
+  render kullanıcı tarafından elle doğrulandı** (Adım 3.3'teki `uvicorn`
+  sorunu çözüldükten sonra): grafik gerçekten akıyor, iki çizgi (ölçülen /
+  teorik) doğru şekilde çiziliyor.
 - Mevcut 9 test hâlâ geçiyor — bu adım sadece `static/`'i değiştirdi,
   backend'e dokunmadı.
 
