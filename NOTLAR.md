@@ -656,3 +656,31 @@ olarak daha doğru cevap vermiyor).
   zarar vermedi ama farklı bir makinede/CI'de aynı komut ilk denemede
   hata verirdi; `requirements.txt` + temiz bir `.venv` kurulumunda bu
   sorun hiç yaşanmaz çünkü paket doğrudan o venv'e kurulur.
+
+### Adım 3.4 — Anlık değer paneli
+
+- Grafiğin üstüne 4 kutucuklu bir panel eklendi: rüzgâr hızı, ölçülen güç,
+  sapma yüzdesi, durum. Her `EventSource.onmessage` olayında hem grafik
+  (`addPoint`) hem panel (`updateStatusPanel`) aynı `point` nesnesinden
+  güncelleniyor — tek SSE mesajı, iki bağımsız görsel güncelleme.
+- **Üç durumlu status, iki değil:** `is_anomaly` / `in_range` çiftinden
+  kasıtlı olarak üç farklı metin/renk üretildi:
+  - `is_anomaly = true` → **"ANOMALY"**, kart kırmızıya dönüyor
+  - `in_range = false` (ve anomali değil) → **"Idle (out of range)"**,
+    normal renkte kalıyor
+  - ikisi de değilse → **"Normal"**
+  Bunun sebebi Faz 1'in temel kararıyla birebir aynı: cut-in altı/cut-out
+  üstü bir "arıza" değil, tasarım gereği beklenen bir durma. `in_range =
+  false`'u da kırmızıya boyasaydık, türbini doğru çalıştığı için
+  suçlamış olurduk — API tasarımındaki ayrım (Adım 2.5/2.6) burada
+  arayüze kadar taşındı.
+- **`.is-anomaly` CSS sınıfı JS ile eklenip çıkarılıyor**, statik olarak
+  yazılmadı — çünkü hangi kartın kırmızı olacağı önceden bilinmiyor,
+  her mesajda yeniden karar veriliyor (`classList.add`/`remove`).
+- **Canlı doğrulama:** sunucu ayağa kaldırılıp `/`'in döndürdüğü HTML
+  içinde panelin tüm DOM id'lerinin (`stat-wind`, `stat-power`,
+  `stat-deviation`, `stat-status`) ve JS'in okuduğu tüm alan adlarının
+  (`wind_speed`, `deviation_pct`, `in_range`, `is_anomaly`) mevcut olduğu
+  doğrulandı. Görsel render kullanıcı tarafından tarayıcıda kontrol
+  edilecek.
+- Mevcut 9 test hâlâ geçiyor.

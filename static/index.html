@@ -8,10 +8,41 @@
     body { font-family: system-ui, sans-serif; margin: 2rem; background: #0f1117; color: #e6e6e6; }
     h1 { font-weight: 600; }
     #chart-wrap { max-width: 900px; height: 420px; }
+
+    #status-panel { display: flex; gap: 1rem; max-width: 900px; margin-bottom: 1.5rem; }
+    .stat-card {
+      flex: 1; background: #1a1d27; border: 1px solid #2a2e3a; border-radius: 8px;
+      padding: 1rem; transition: background 0.2s, border-color 0.2s;
+    }
+    .stat-card .label { font-size: 0.8rem; color: #a0aec0; text-transform: uppercase; letter-spacing: 0.03em; }
+    .stat-card .value { font-size: 1.8rem; font-weight: 600; margin-top: 0.25rem; }
+    /* .is-anomaly toggled by JS below -- not a static class, so it can't be styled by guessing at load time */
+    .stat-card.is-anomaly { background: #3a1a1a; border-color: #e05252; }
+    .stat-card.is-anomaly .value { color: #ff8080; }
   </style>
 </head>
 <body>
   <h1>TurbineTwin — Live Power Curve</h1>
+
+  <div id="status-panel">
+    <div class="stat-card">
+      <div class="label">Wind Speed</div>
+      <div class="value" id="stat-wind">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Measured Power</div>
+      <div class="value" id="stat-power">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Deviation</div>
+      <div class="value" id="stat-deviation">—</div>
+    </div>
+    <div class="stat-card" id="stat-status-card">
+      <div class="label">Status</div>
+      <div class="value" id="stat-status">—</div>
+    </div>
+  </div>
+
   <div id="chart-wrap">
     <canvas id="powerChart"></canvas>
   </div>
@@ -73,12 +104,41 @@
       chart.update("none"); // "none" skips animation on this update, same reasoning as options.animation above
     }
 
+    const statWind = document.getElementById("stat-wind");
+    const statPower = document.getElementById("stat-power");
+    const statDeviation = document.getElementById("stat-deviation");
+    const statStatus = document.getElementById("stat-status");
+    const statStatusCard = document.getElementById("stat-status-card");
+
+    function updateStatusPanel(point) {
+      statWind.textContent = `${point.wind_speed.toFixed(1)} m/s`;
+      statPower.textContent = `${point.active_power_kw.toFixed(0)} kW`;
+      statDeviation.textContent = `${point.deviation_pct.toFixed(1)}%`;
+
+      // Three states, not two -- "below cut-in / above cut-out" (in_range
+      // false) is a design-expected idle, not a fault, so it must read
+      // differently from is_anomaly (see NOTLAR.md: cut-in/cut-out is a
+      // trust boundary, not just a filter).
+      if (point.is_anomaly) {
+        statStatus.textContent = "ANOMALY";
+        statStatusCard.classList.add("is-anomaly");
+      } else if (!point.in_range) {
+        statStatus.textContent = "Idle (out of range)";
+        statStatusCard.classList.remove("is-anomaly");
+      } else {
+        statStatus.textContent = "Normal";
+        statStatusCard.classList.remove("is-anomaly");
+      }
+    }
+
     // EventSource is the browser's built-in SSE client -- no library needed.
     // Same-origin (this page is served by the same FastAPI app as /api/stream),
     // so no CORS setup is required.
     const source = new EventSource("/api/stream?speed=10");
     source.onmessage = (event) => {
-      addPoint(JSON.parse(event.data));
+      const point = JSON.parse(event.data);
+      addPoint(point);
+      updateStatusPanel(point);
     };
     source.onerror = () => {
       console.error("Stream connection lost.");
