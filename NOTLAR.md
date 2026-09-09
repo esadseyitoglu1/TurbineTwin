@@ -713,3 +713,41 @@ olarak daha doğru cevap vermiyor).
   tamamında (`/api/stream?speed=1|10|100`) `text/event-stream` ile ilk
   satırı sorunsuz döndürdüğü doğrulandı.
 - Mevcut 9 test hâlâ geçiyor.
+
+### Adım 3.6 — Anomali listesi (Faz 3'ün son parçası)
+
+- Grafiğin altına "bu oturumda görülen anomaliler" bölümü eklendi: bir
+  sayaç (`Anomalies seen this session: N`) ve en yeni 10 anomalinin
+  (zaman, rüzgâr, ölçülen güç, sapma) küçük bir tablosu. `is_anomaly`
+  alanı `true` gelen her SSE mesajında `recordAnomaly()` çağrılıyor —
+  panel/grafik güncellemesiyle aynı `onmessage` callback'i içinde, ayrı
+  bir istek/polling yok.
+- **En yeni üstte (`prepend`), en eski atılıyor:** `MAX_ANOMALY_ROWS = 10`
+  ile aynı "kayan pencere" deseni (`MAX_POINTS`, Adım 3.2) burada da
+  tekrarlandı — oturum uzun sürerse (özellikle `speed=1`'de neredeyse
+  sınırsız) liste sınırsız büyümesin diye.
+- **Hız değişince liste de sıfırlanıyor:** `startStream()` her çağrıldığında
+  `resetAnomalyList()` da çağrılıyor. Sebebi Adım 3.5'teki kararla aynı —
+  yeniden bağlanma, veri setinin başından yeniden başlıyor, dolayısıyla
+  "bu oturumda görülen anomaliler" de o yeni oturuma ait olmalı, önceki
+  hızdan kalan sayım yanıltıcı olurdu.
+- **Canlı doğrulama — gerçek anomali verisiyle:** stream `speed=100`'de
+  okunup ilk `is_anomaly: true` satırı arandı; **satır 1476'da** bulundu:
+  `2018-01-11T09:20:00, wind_speed=10.97, active_power_kw=0.0,
+  deviation_pct=-90.6%` — Faz 1'in NOTLAR.md'sindeki örnek anomaliyle
+  (Adım 9/10) birebir aynı satır. Bu, `recordAnomaly()`'nin işleyeceği
+  verinin gerçek şeklini ve JS'in okuduğu alan adlarının (`timestamp`,
+  `wind_speed`, `active_power_kw`, `deviation_pct`) API'nin ürettiğiyle
+  eşleştiğini kanıtlıyor.
+- Ayrıca HTML içinde tüm yeni DOM referanslarının (`anomaly-count`,
+  `anomaly-table`, `anomaly-rows`, `recordAnomaly`, `resetAnomalyList`)
+  bulunduğu doğrulandı.
+- Mevcut 9 test hâlâ geçiyor.
+
+## Faz 3 tamamlandı
+
+6 adım (3.1–3.6): statik servis, canlı grafik, anlık değer paneli, hız
+kontrolü, anomali listesi. Tamamı vanilla JS + Chart.js (CDN), build adımı
+yok, aynı origin'den (FastAPI + StaticFiles) servis ediliyor. Grafiğin ve
+panelin görsel render'ı kullanıcı tarafından tarayıcıda doğrulandı.
+Sıradaki: Faz 4 (RAG) veya Faz 5 (MCP sunucusu).

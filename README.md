@@ -66,6 +66,15 @@ uvicorn turbinetwin.api:app --reload
 
 Serves at `http://127.0.0.1:8000`. Interactive docs at `/docs`.
 
+### Dashboard
+
+Open `http://127.0.0.1:8000/` (same server, same command as above) for a
+live dashboard: a power-curve chart, a status panel (wind speed, measured
+power, deviation %, normal/idle/anomaly state), playback speed controls
+(1x/10x/100x), and a running list of anomalies seen in the current session.
+Plain HTML/JS (Chart.js via CDN, `EventSource` for the stream) — no build
+step, no `npm install`.
+
 - `GET /api/health` — readiness check, reports rows loaded at startup.
 - `GET /api/window?start=0&limit=100` — a slice of the dataset as JSON,
   validated against the `TurbinePoint` schema.
@@ -100,6 +109,7 @@ curve predicting 2000-3600 kW there.
 ```
 src/turbinetwin/   # core logic: data loading, deviation metrics, anomaly
                    # detection, plotting -- reused by later phases (API, MCP)
+static/            # dashboard: plain HTML/JS, served by the API itself
 scripts/           # entry points
 data/              # raw (gitignored) and processed data
 outputs/figures/   # generated plots (gitignored)
@@ -122,5 +132,5 @@ so it was left out rather than half-implemented.
 
 ## Status
 
-Phase 1 (data + model) and Phase 2 (FastAPI streaming service) complete. See
-`NOTLAR.md` for the full decision log. Next: Phase 3 (client-side dashboard).
+Phase 1 (data + model), Phase 2 (FastAPI streaming service), and Phase 3
+(dashboard) complete. See `NOTLAR.md` for the full decision log.

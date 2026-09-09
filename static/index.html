@@ -9,6 +9,14 @@
     h1 { font-weight: 600; }
     #chart-wrap { max-width: 900px; height: 420px; }
 
+    #anomaly-panel { max-width: 900px; margin-top: 1.5rem; }
+    #anomaly-panel h2 { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
+    #anomaly-panel h2 span { color: #ff8080; }
+    #anomaly-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    #anomaly-table th, #anomaly-table td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #2a2e3a; }
+    #anomaly-table th { color: #a0aec0; font-weight: 500; text-transform: uppercase; font-size: 0.75rem; }
+    #anomaly-empty { color: #a0aec0; font-size: 0.85rem; }
+
     #controls { display: flex; align-items: center; gap: 0.75rem; max-width: 900px; margin-bottom: 1rem; }
     #controls span { font-size: 0.85rem; color: #a0aec0; }
     .speed-btn {
@@ -61,6 +69,17 @@
 
   <div id="chart-wrap">
     <canvas id="powerChart"></canvas>
+  </div>
+
+  <div id="anomaly-panel">
+    <h2>Anomalies seen this session: <span id="anomaly-count">0</span></h2>
+    <p id="anomaly-empty">None yet.</p>
+    <table id="anomaly-table" hidden>
+      <thead>
+        <tr><th>Time</th><th>Wind (m/s)</th><th>Measured (kW)</th><th>Deviation</th></tr>
+      </thead>
+      <tbody id="anomaly-rows"></tbody>
+    </table>
   </div>
 
   <script>
@@ -147,6 +166,44 @@
       }
     }
 
+    // MAX_ANOMALY_ROWS: same rolling-window reasoning as MAX_POINTS above
+    // -- a session can run for a long time (or at speed=1, effectively
+    // forever), so the list needs a cap, not unbounded growth.
+    const MAX_ANOMALY_ROWS = 10;
+    let anomalyCount = 0;
+    const anomalyCountEl = document.getElementById("anomaly-count");
+    const anomalyEmptyEl = document.getElementById("anomaly-empty");
+    const anomalyTableEl = document.getElementById("anomaly-table");
+    const anomalyRowsEl = document.getElementById("anomaly-rows");
+
+    function resetAnomalyList() {
+      anomalyCount = 0;
+      anomalyCountEl.textContent = "0";
+      anomalyRowsEl.innerHTML = "";
+      anomalyEmptyEl.hidden = false;
+      anomalyTableEl.hidden = true;
+    }
+
+    function recordAnomaly(point) {
+      anomalyCount += 1;
+      anomalyCountEl.textContent = String(anomalyCount);
+      anomalyEmptyEl.hidden = true;
+      anomalyTableEl.hidden = false;
+
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${point.timestamp.slice(0, 16).replace("T", " ")}</td>
+        <td>${point.wind_speed.toFixed(1)}</td>
+        <td>${point.active_power_kw.toFixed(0)}</td>
+        <td>${point.deviation_pct.toFixed(1)}%</td>
+      `;
+      anomalyRowsEl.prepend(row); // newest first
+
+      while (anomalyRowsEl.children.length > MAX_ANOMALY_ROWS) {
+        anomalyRowsEl.lastElementChild.remove();
+      }
+    }
+
     // EventSource is the browser's built-in SSE client -- no library needed.
     // Same-origin (this page is served by the same FastAPI app as /api/stream),
     // so no CORS setup is required.
@@ -168,12 +225,16 @@
       chart.data.datasets[0].data = [];
       chart.data.datasets[1].data = [];
       chart.update("none");
+      resetAnomalyList(); // a restarted replay means "anomalies seen this session" restarts too
 
       currentSource = new EventSource(`/api/stream?speed=${speed}`);
       currentSource.onmessage = (event) => {
         const point = JSON.parse(event.data);
         addPoint(point);
         updateStatusPanel(point);
+        if (point.is_anomaly) {
+          recordAnomaly(point);
+        }
       };
       currentSource.onerror = () => {
         console.error("Stream connection lost.");
