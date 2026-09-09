@@ -618,3 +618,40 @@ olarak daha doğru cevap vermiyor).
   edilemedi — bir sonraki adımda tarayıcıda elle kontrol edilmeli.
 - Mevcut 9 test hâlâ geçiyor — bu adım sadece `static/`'i değiştirdi,
   backend'e dokunmadı.
+
+### Adım 3.3 — Ortam bulgusu: `uvicorn` komutu bulunamadı (SEN TESPİT ETTİN)
+
+- ~5 haftalık aradan sonra ilk kez tarayıcıdan `uvicorn` ile sunucu
+  başlatılmaya çalışıldı: `uvicorn : The term 'uvicorn' is not recognized`.
+  `.venv` aktifti (`(.venv)` prompt'ta görünüyordu), `$env:PYTHONPATH`
+  doğruydu — yine de PowerShell komutu bulamadı.
+- **Kök sebep canlı teşhis edildi:** `pip show uvicorn` paketi "kurulu"
+  gösteriyordu (v0.51.0) ama `.venv/Scripts/uvicorn.exe` diskte **yoktu**.
+  `python -c "import uvicorn; print(uvicorn.__file__)"` paketin gerçekte
+  nereden geldiğini gösterdi: `.venv` içinden değil,
+  `AppData\Roaming\Python\Python314\site-packages` — yani **global**
+  kullanıcı kurulumundan.
+- **Neden bu mümkün oldu:** Adım 0'da `.venv` bilinçli olarak
+  `--system-site-packages` ile kurulmuştu (pandas/numpy/sklearn gibi
+  paketler için). Bu bayrak, global konumdaki **herhangi bir** paketi
+  import edilebilir yapıyor — sadece o an zaten kurulu olanları değil. Bir
+  noktada `uvicorn` global olarak (venv dışında, muhtemelen `pip install
+  --user uvicorn` ile) kurulmuş; `import uvicorn` bunu sorunsuz buluyordu,
+  ama komut satırı script'i (`uvicorn.exe`) sadece paketin **kurulduğu**
+  ortamın `Scripts/` klasörüne yazılır — global kuruluma ait olduğu için
+  `.venv/Scripts/`'e hiç düşmemişti. **Python modülü olarak görünür olmak
+  ile komut satırı programı olarak çalıştırılabilir olmak farklı şeyler.**
+- **Çözüm:** `pip install --force-reinstall --no-deps uvicorn`, `.venv`
+  aktifken çalıştırıldı — bu paketi zorla **bu venv'in kendi**
+  `site-packages`'ına ve `Scripts/`'ine kurdu (v0.52.4). Global kurulum
+  dokunulmadan kaldı (pip onu "environment dışında" diye zaten atladı).
+  `.venv/Scripts/uvicorn.exe --version` ile script'in artık gerçekten
+  orada olduğu doğrulandı.
+- **Doğrulama:** `pytest tests/` yeniden çalıştırıldı, 9/9 hâlâ geçti —
+  sürüm farkı (0.51.0 → 0.52.4) davranışı bozmadı.
+- **Ders:** `--system-site-packages`'ın rahatlığının bir bedeli var — bir
+  paketin "import edilebiliyor" olması, o paketin komut satırı
+  script'lerinin de mevcut olduğu anlamına gelmiyor. Bu proje ölçeğinde
+  zarar vermedi ama farklı bir makinede/CI'de aynı komut ilk denemede
+  hata verirdi; `requirements.txt` + temiz bir `.venv` kurulumunda bu
+  sorun hiç yaşanmaz çünkü paket doğrudan o venv'e kurulur.
