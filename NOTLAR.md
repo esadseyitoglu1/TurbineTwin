@@ -750,4 +750,94 @@ olarak daha doğru cevap vermiyor).
 kontrolü, anomali listesi. Tamamı vanilla JS + Chart.js (CDN), build adımı
 yok, aynı origin'den (FastAPI + StaticFiles) servis ediliyor. Grafiğin ve
 panelin görsel render'ı kullanıcı tarafından tarayıcıda doğrulandı.
-Sıradaki: Faz 4 (RAG) veya Faz 5 (MCP sunucusu).
+
+## Faz 4 — RAG (Retrieval-Augmented Generation)
+
+**Neden RAG burada anlamlı:** anomali tespiti tek başına "bu satır normalin
+dışında" diyor ama "neden" sorusuna cevap vermiyor. Gerçek bir rüzgâr
+santralinde bu genelde iki sebepten biri: planlı bakım (beklenen, zararsız)
+veya gerçek arıza (araştırılması gereken). RAG'ın işi, kullanıcının doğal
+dilde sorduğu "bu anomali neden oldu?" sorusuna, elimizdeki (uydurma) bakım
+kayıtlarını arayıp cevap üretmek.
+
+**"Generation" adımı kural tabanlı, gerçek bir LLM'e bağlanmıyor** — bilinçli
+karar. Sebebi: bu adımın öğretici/savunulabilir kısmı retrieval (doğru
+kaydı bulmak), LLM'in cümleyi güzelleştirmesi değil. Kural tabanlı bir
+şablon, retrieval mantığının kendisini tamamen görünür ve test edilebilir
+kılıyor — API anahtarı, ağ bağımlılığı veya mock'lama olmadan `pytest` ile
+doğrulanabiliyor. Gerçek bir LLM entegrasyonu istenirse, `ask.py`'nin
+döndürdüğü yapılandırılmış sonuç (`row` + `maintenance_record`) doğrudan
+o LLM'in prompt'una context olarak eklenebilir — mimari buna hazır,
+sadece son adım (cümleyi LLM'e yazdırmak) eklenmemiş.
+
+### Adım 4.1 — Uydurma bakım kayıtları
+
+- `data/processed/maintenance_log.json` oluşturuldu: 3 kayıt, Faz 1'in
+  gerçek anomali kümelerinden seçildi (`.gitignore`'daki
+  `data/processed/*.parquet` kuralı `.json`'ı etkilemiyor, dosya normal
+  şekilde commit'leniyor).
+- **Kümeler rastgele değil, ölçülerek seçildi:** önce mevcut `deviation.py`
+  zinciri çalıştırılıp gerçek anomali kümeleri (`is_anomaly` satırlarının
+  ardışık grupları) bulundu — 104 küme, en büyüğü 16 Ocak (54 satır, ~9
+  saat), ikincisi 5 Aralık (46 satır, ~7.5 saat). Bunlardan **3 tanesine
+  bakım kaydı uyduruldu** (16 Ocak — rotor yatağı, 5 Aralık — jeneratör
+  soğutma arızası, 14 Ocak — rutin yağlama), **2 tanesi bilerek kayıtsız
+  bırakıldı** (24-25 Ocak, 30 Ocak) — "açıklanmamış anomali" durumunu da
+  göstermek için (kullanıcı kararı: karma senaryo, hepsi açıklanmış
+  olsaydı RAG'ın "bulamadım" cevabı hiç test edilmezdi).
+- Kayıt pencereleri anomali kümesinin **tam üstüne** değil, biraz daha
+  geniş yazıldı (örn. küme 01:40'ta başlıyor, bakım kaydı 01:00'da) —
+  gerçekçi bir detay: bakım ekibinin vardığı an ile türbinin fiilen sıfıra
+  düştüğü an aynı dakika olmaz.
+
+### Adım 4.2 — Retrieval: tarih aralığı eşleştirme
+
+- `src/turbinetwin/maintenance.py`: `load_maintenance_log()` (JSON'ı
+  okuyup `start`/`end`'i `pd.Timestamp`'e çeviriyor) ve
+  `find_overlapping_records(records, start, end)`.
+- **Embedding/vektör arama kullanılmadı — bilinçli karar.** 3 kayıtlık,
+  yapılandırılmış (start/end alanları net) bir veri seti için semantik
+  arama gereksiz karmaşıklık olurdu (Faz 3'teki "React gerekmiyor"
+  kararıyla aynı desen). Basit bir aralık kesişimi (`start <= end AND
+  end >= start`) yeterli ve tam olarak doğru sonucu veriyor.
+- **Tam eşitlik değil, kesişim (overlap) kontrolü** — Adım 4.1'deki
+  kasıtlı pencere farkı yüzünden gerekli: anomali kümesinin başlangıcı
+  bakım kaydının başlangıcıyla birebir aynı olmuyor.
+- **Canlı doğrulama:** 5 kümenin tümü elle test edildi — 3 bakımlı küme
+  (16 Ocak, 5 Aralık, 14 Ocak) doğru kaydı buldu, 2 kayıtsız küme (24-25
+  Ocak, 30 Ocak) doğru şekilde "bulunamadı" sonucu verdi.
+
+### Adım 4.3 — `explain_anomaly()` + `/api/ask` endpoint'i
+
+- `src/turbinetwin/ask.py`: `find_anomaly_window()` bir zaman noktasından
+  başlayıp `is_anomaly` satırları hem geriye hem ileriye doğru yürüyerek
+  ardışık kümenin tamamını buluyor (index bazlı `while` döngüsü — Faz
+  1'deki kümeleme mantığının fonksiyon içine taşınmış hali).
+  `explain_anomaly()` dört durumu ayrı ayrı ele alıyor: (1) tarih veride
+  yok, (2) satır anomali değil, (3) anomali + bakım kaydı örtüşüyor, (4)
+  anomali + bakım kaydı yok. Her durum için ayrı, okunabilir bir İngilizce
+  cümle üretiyor.
+- `api.py`: `lifespan` içine `STATE["maintenance_records"] =
+  load_maintenance_log()` eklendi (Faz 1 zincirinin yanına, aynı desen —
+  veri başlangıçta bir kez yükleniyor). `GET /api/ask?timestamp=...`
+  endpoint'i `explain_anomaly()`'yi çağırıp sonucu JSON olarak döndürüyor.
+- **Canlı doğrulama — 4 senaryo, gerçek HTTP üzerinden:**
+  - `2018-01-16 05:00:00` (bakımlı anomali) → 200, kayıt bulundu, "This is
+    very likely explained by planned downtime"
+  - `2018-01-25 00:30:00` (kayıtsız anomali) → 200, "genuine, unexplained
+    underperformance"
+  - `2018-01-01 00:00:00` (normal satır) → 200, "was not flagged"
+  - `2020-01-01 00:00:00` (veride olmayan tarih) → 200, "No data point
+    found"
+- **Küçük bulgu — Windows terminali Türkçe karakteri bozuk gösteriyor:**
+  bakım kaydındaki `"M. Aydın"` Windows terminalinde `M. Ayd�n` olarak
+  görünüyordu. Canlı kontrol edildi (`ord(c)` ile kod noktası okundu):
+  karakter gerçekte `U+0131` (`ı`), yani **JSON tamamen doğru UTF-8** —
+  bozukluk sadece terminalin görüntüleme kısıtlaması (Windows'un varsayılan
+  konsol code page'i), veri veya API katmanında bir sorun yok. Tarayıcıda
+  doğru görünecek.
+- **Testler:** `tests/test_ask.py` eklendi — kesişim kontrolü + dört
+  `explain_anomaly` senaryosu (bakımlı, kayıtsız, normal, veride yok),
+  DataFrame fixture'ları elle kuruldu (Faz 1'in `test_deviation.py`'sindeki
+  `make_row` desenine benzer bir `make_df` yardımcı fonksiyonu ile).
+- **Doğrulama:** `pytest tests/` → 14/14 geçti.

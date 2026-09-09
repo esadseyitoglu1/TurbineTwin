@@ -6,12 +6,14 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
+from turbinetwin.ask import explain_anomaly
 from turbinetwin.config import PROJECT_ROOT, SIMULATED_INTERVAL_SECONDS
 from turbinetwin.data_loader import load_raw
 from turbinetwin.deviation import (
     add_normalized_deviation, add_operating_state, derive_threshold, flag_anomalies,
     run_isolation_forest,
 )
+from turbinetwin.maintenance import load_maintenance_log
 from turbinetwin.schemas import TurbinePoint
 from turbinetwin.serialization import row_to_dict
 
@@ -33,6 +35,7 @@ async def lifespan(app: FastAPI):
 
     STATE["df"] = df
     STATE["threshold"] = threshold
+    STATE["maintenance_records"] = load_maintenance_log()  # Phase 4 -- see NOTLAR.md Step 4.1
 
     yield  # server is now ready to handle requests
 
@@ -75,6 +78,15 @@ async def stream_data(speed: int = 1):
     if speed not in VALID_SPEEDS:
         raise HTTPException(status_code=422, detail=f"speed must be one of {VALID_SPEEDS}")
     return StreamingResponse(event_generator(speed), media_type="text/event-stream")
+
+
+@app.get("/api/ask")
+def ask(timestamp: str):
+    # Rule-based RAG: retrieval (row lookup + maintenance-window overlap,
+    # see maintenance.py/ask.py) always runs; a template stands in for the
+    # Generation step so this endpoint needs no LLM API key and no network
+    # call to test (see NOTLAR.md Step 4.3 for the reasoning).
+    return explain_anomaly(STATE["df"], timestamp, STATE["maintenance_records"])
 
 
 # Mounted last and deliberately: a mount on "/" would otherwise shadow every

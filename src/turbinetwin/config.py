@@ -7,6 +7,10 @@ RAW_DATA_PATH = PROJECT_ROOT / "data" / "raw" / "T1.csv"
 PROCESSED_DATA_DIR = PROJECT_ROOT / "data" / "processed"
 FIGURES_DIR = PROJECT_ROOT / "outputs" / "figures"
 
+# Synthetic maintenance records (Phase 4) -- see NOTLAR.md Step 4.1 for
+# how the 3 logged / 2 unlogged anomaly clusters were chosen.
+MAINTENANCE_LOG_PATH = PROCESSED_DATA_DIR / "maintenance_log.json"
+
 # Manufacturer cut-in/cut-out wind speeds (m/s). Outside this range the
 # turbine is expected to produce ~0 power by design, not by fault.
 CUT_IN = 3.0

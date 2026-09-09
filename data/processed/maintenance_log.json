@@ -1,0 +1,26 @@
+[
+  {
+    "id": "MNT-2018-0116",
+    "start": "2018-01-16T01:00:00",
+    "end": "2018-01-16T11:00:00",
+    "technician": "M. Aydın",
+    "work_order": "Rotor bearing replacement",
+    "notes": "Scheduled replacement of the main rotor bearing after vibration readings exceeded the maintenance threshold during the January inspection round. Turbine was taken offline for the duration of the work; output during this window is expected to be near zero regardless of wind conditions."
+  },
+  {
+    "id": "MNT-2018-1205",
+    "start": "2018-12-05T05:00:00",
+    "end": "2018-12-05T13:30:00",
+    "technician": "S. Kaya",
+    "work_order": "Generator cooling system repair",
+    "notes": "Generator cooling fan controller failed overnight, triggering an automatic thermal cutout. Field team dispatched at first light to replace the controller board. Turbine held at zero output under remote lockout until the repair was verified complete."
+  },
+  {
+    "id": "MNT-2018-0114",
+    "start": "2018-01-14T04:30:00",
+    "end": "2018-01-14T09:00:00",
+    "technician": "M. Aydın",
+    "work_order": "Routine lubrication and gearbox inspection",
+    "notes": "Routine quarterly lubrication service on the main gearbox, combined with a visual inspection of the yaw drive. Turbine was curtailed (held at reduced/zero output) for the duration as a standard safety precaution during gearbox access."
+  }
+]
