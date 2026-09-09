@@ -16,6 +16,21 @@
     #anomaly-table th, #anomaly-table td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #2a2e3a; }
     #anomaly-table th { color: #a0aec0; font-weight: 500; text-transform: uppercase; font-size: 0.75rem; }
     #anomaly-empty { color: #a0aec0; font-size: 0.85rem; }
+    #anomaly-rows tr { cursor: pointer; }
+    #anomaly-rows tr:hover { background: #1a1d27; }
+
+    #explanation-box {
+      max-width: 900px; margin-top: 1rem; padding: 1rem;
+      background: #1a1d27; border: 1px solid #2a2e3a; border-radius: 8px;
+      font-size: 0.9rem; line-height: 1.5;
+    }
+    #explanation-box.explained-by-maintenance { border-color: #4fd1c5; }
+    #explanation-box .tag {
+      display: inline-block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em;
+      padding: 0.15rem 0.5rem; border-radius: 4px; margin-bottom: 0.5rem;
+    }
+    #explanation-box.explained-by-maintenance .tag { background: #1a3a35; color: #4fd1c5; }
+    #explanation-box.unexplained .tag { background: #3a1a1a; color: #ff8080; }
 
     #controls { display: flex; align-items: center; gap: 0.75rem; max-width: 900px; margin-bottom: 1rem; }
     #controls span { font-size: 0.85rem; color: #a0aec0; }
@@ -80,6 +95,10 @@
       </thead>
       <tbody id="anomaly-rows"></tbody>
     </table>
+    <p id="anomaly-hint" hidden style="color: #a0aec0; font-size: 0.8rem; margin-top: 0.4rem;">
+      Click a row to ask why it was flagged.
+    </p>
+    <div id="explanation-box" hidden></div>
   </div>
 
   <script>
@@ -182,6 +201,8 @@
       anomalyRowsEl.innerHTML = "";
       anomalyEmptyEl.hidden = false;
       anomalyTableEl.hidden = true;
+      anomalyHintEl.hidden = true;
+      explanationBoxEl.hidden = true;
     }
 
     function recordAnomaly(point) {
@@ -189,18 +210,51 @@
       anomalyCountEl.textContent = String(anomalyCount);
       anomalyEmptyEl.hidden = true;
       anomalyTableEl.hidden = false;
+      anomalyHintEl.hidden = false;
 
       const row = document.createElement("tr");
+      row.dataset.timestamp = point.timestamp; // read back on click, see askAboutRow()
       row.innerHTML = `
         <td>${point.timestamp.slice(0, 16).replace("T", " ")}</td>
         <td>${point.wind_speed.toFixed(1)}</td>
         <td>${point.active_power_kw.toFixed(0)}</td>
         <td>${point.deviation_pct.toFixed(1)}%</td>
       `;
+      row.addEventListener("click", () => askAboutRow(point.timestamp));
       anomalyRowsEl.prepend(row); // newest first
 
       while (anomalyRowsEl.children.length > MAX_ANOMALY_ROWS) {
         anomalyRowsEl.lastElementChild.remove();
+      }
+    }
+
+    const anomalyHintEl = document.getElementById("anomaly-hint");
+    const explanationBoxEl = document.getElementById("explanation-box");
+
+    // Phase 4's RAG endpoint: GET /api/ask?timestamp=... looks up the row,
+    // checks whether a maintenance record overlaps its anomaly cluster,
+    // and returns a template-generated sentence (see ask.py -- retrieval
+    // is real, "generation" is a rule-based template rather than an LLM
+    // call, on purpose: see NOTLAR.md Step 4.3).
+    async function askAboutRow(timestamp) {
+      explanationBoxEl.hidden = false;
+      explanationBoxEl.className = "";
+      explanationBoxEl.textContent = "Looking up...";
+
+      try {
+        const response = await fetch(`/api/ask?timestamp=${encodeURIComponent(timestamp)}`);
+        const result = await response.json();
+
+        const tag = result.explained_by_maintenance
+          ? '<span class="tag">Maintenance match</span>'
+          : '<span class="tag">Unexplained</span>';
+        explanationBoxEl.className = result.explained_by_maintenance
+          ? "explained-by-maintenance"
+          : "unexplained";
+        explanationBoxEl.innerHTML = `${tag}<div>${result.answer}</div>`;
+      } catch (err) {
+        explanationBoxEl.className = "";
+        explanationBoxEl.textContent = "Could not reach /api/ask.";
       }
     }
 

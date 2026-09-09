@@ -82,6 +82,12 @@ step, no `npm install`.
   order as Server-Sent Events, at 1x/10x/100x the original 10-minute
   cadence. See `NOTLAR.md` Step 2.8 for why 100x measures closer to ~54x in
   practice (Windows timer resolution).
+- `GET /api/ask?timestamp=...` — rule-based RAG: explains whether a given
+  reading was flagged as an anomaly and, if so, whether it overlaps a
+  (synthetic) logged maintenance window or looks like a genuine,
+  unexplained underperformance. Click a row in the dashboard's anomaly
+  list to try it. See `NOTLAR.md` Phase 4 for why "generation" here is a
+  template rather than an LLM call.
 
 ## Results
 
@@ -111,7 +117,8 @@ src/turbinetwin/   # core logic: data loading, deviation metrics, anomaly
                    # detection, plotting -- reused by later phases (API, MCP)
 static/            # dashboard: plain HTML/JS, served by the API itself
 scripts/           # entry points
-data/              # raw (gitignored) and processed data
+data/              # raw (gitignored) and processed data, plus the
+                   # synthetic maintenance log used by /api/ask
 outputs/figures/   # generated plots (gitignored)
 tests/             # sanity tests
 NOTLAR.md          # detailed decision log and interview prep notes
@@ -132,5 +139,6 @@ so it was left out rather than half-implemented.
 
 ## Status
 
-Phase 1 (data + model), Phase 2 (FastAPI streaming service), and Phase 3
-(dashboard) complete. See `NOTLAR.md` for the full decision log.
+Phase 1 (data + model), Phase 2 (FastAPI streaming service), Phase 3
+(dashboard), and Phase 4 (rule-based RAG for anomaly explanations)
+complete. See `NOTLAR.md` for the full decision log.

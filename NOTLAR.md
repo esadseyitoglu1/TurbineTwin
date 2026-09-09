@@ -841,3 +841,33 @@ sadece son adım (cümleyi LLM'e yazdırmak) eklenmemiş.
   DataFrame fixture'ları elle kuruldu (Faz 1'in `test_deviation.py`'sindeki
   `make_row` desenine benzer bir `make_df` yardımcı fonksiyonu ile).
 - **Doğrulama:** `pytest tests/` → 14/14 geçti.
+
+### Adım 4.4 — Dashboard'a soru kutusu
+
+- `static/index.html`: anomali tablosundaki her satır tıklanabilir hale
+  getirildi (`row.dataset.timestamp` ile zaman damgası satıra iliştirildi).
+  Tıklandığında `askAboutRow(timestamp)` çağrılıyor, bu da
+  `fetch("/api/ask?timestamp=...")` ile Adım 4.3'teki endpoint'i çağırıp
+  cevabı grafiğin altındaki bir kutuda gösteriyor.
+- **İki görsel durum ayrıştırıldı:** `explained_by_maintenance` alanına
+  göre kutu ya turkuaz kenarlıklı "Maintenance match" ya da kırmızı
+  kenarlıklı "Unexplained" etiketiyle beliriyor — Adım 3.4'teki
+  anomali/idle ayrımıyla aynı görsel dil (renk = anlam).
+  Bu, mülakatta gösterilecek en somut RAG anı: kullanıcı bir anomaliye
+  tıklıyor, sistem "bu bakımdı" ya da "bu açıklanamıyor" diyor.
+- `fetch` kullanıldı, `EventSource` değil — `/api/ask` bir stream değil,
+  tek seferlik bir istek/cevap. İki farklı iletişim deseni (SSE vs.
+  fetch) aynı sayfada, her biri kendi amacına uygun yerde kullanıldı.
+- **Canlı doğrulama:** sunucu ayağa kaldırılıp `/`'in döndürdüğü HTML
+  içinde `askAboutRow`, `/api/ask`, `explanation-box`, `anomaly-hint` ve
+  `row.dataset.timestamp` referanslarının bulunduğu doğrulandı.
+- Mevcut 14 test hâlâ geçiyor — bu adım sadece `static/`'i değiştirdi.
+
+## Faz 4 tamamlandı
+
+4 adım (4.1–4.4): uydurma bakım kayıtları, tarih-aralığı retrieval,
+kural-tabanlı açıklama üretimi, dashboard entegrasyonu. RAG'ın çekirdek
+mantığı (retrieval) tamamen görünür ve test edilebilir; "generation"
+bilinçli olarak kural tabanlı bırakıldı, gerçek bir LLM'e bağlanmak
+istenirse `explain_anomaly()`'nin yapılandırılmış çıktısı doğrudan
+context olarak kullanılabilir. Sıradaki: Faz 5 (MCP sunucusu).
