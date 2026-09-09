@@ -57,6 +57,23 @@ This loads the data, reports data quality, computes deviation metrics, derives
 an anomaly threshold, flags anomalies, and compares against Isolation Forest —
 saving three figures to `outputs/figures/`.
 
+### API server
+
+```powershell
+$env:PYTHONPATH = "src"
+uvicorn turbinetwin.api:app --reload
+```
+
+Serves at `http://127.0.0.1:8000`. Interactive docs at `/docs`.
+
+- `GET /api/health` — readiness check, reports rows loaded at startup.
+- `GET /api/window?start=0&limit=100` — a slice of the dataset as JSON,
+  validated against the `TurbinePoint` schema.
+- `GET /api/stream?speed=1|10|100` — replays the full dataset in timestamp
+  order as Server-Sent Events, at 1x/10x/100x the original 10-minute
+  cadence. See `NOTLAR.md` Step 2.8 for why 100x measures closer to ~54x in
+  practice (Windows timer resolution).
+
 ## Results
 
 **Power curve** — measured output vs. the theoretical curve. The S-curve,
@@ -105,5 +122,5 @@ so it was left out rather than half-implemented.
 
 ## Status
 
-Phase 1 (data + model) complete. See `NOTLAR.md` for the full decision log.
-Next: Phase 2 (FastAPI streaming service).
+Phase 1 (data + model) and Phase 2 (FastAPI streaming service) complete. See
+`NOTLAR.md` for the full decision log. Next: Phase 3 (client-side dashboard).

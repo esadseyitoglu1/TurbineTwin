@@ -514,3 +514,37 @@ Bunu yapmak için bir **Web Sunucusu (Web Server)** kuracağız. Temel kavramlar
   uyuşmayan, ölçülüp dürüstçe kaydedilen bir bulgu.
 - `speed=7` gibi geçersiz bir değer canlı test edildi, `422` ve açıklayıcı
   mesaj (`"speed must be one of (1, 10, 100)"`) doğrulandı.
+
+### Adım 2.9 — Faz 2'yi kapatma: bağımlılıklar, testler, README
+
+~5 haftalık bir aradan sonra fark edildi: `requirements.txt` hâlâ sadece
+Faz 1'in paketlerini listeliyordu (`fastapi`/`uvicorn`/`pydantic`/`httpx`
+eksikti) — yani repoyu klonlayan biri `pytest tests/` bile çalıştıramazdı.
+Üç iş yapıldı:
+
+- **`requirements.txt`** güncellendi: `fastapi`, `uvicorn`, `pydantic`,
+  `httpx` (test-only, `TestClient` bunu gerektiriyor) eklendi.
+- **`tests/test_api.py`** eklendi (`/api/health`, `/api/window`, `/api/stream`
+  için 6 test). **Canlı bulgu:** `client.stream(...)`'in `with` bloğundan
+  çıkmak — `iter_lines()` hiç çağrılmasa bile — `TestClient`'ın altındaki
+  taşıyıcının response'u kapatmak için generator'ı **tüketmeye** çalışmasına
+  yol açıyor. `event_generator` tüm veri setini (~50.530 satır) dolaştığı
+  için `speed=100`'de bile bu dakikalar sürer ve test asılı kalır (üç kez
+  yaşandı, süreç elle sonlandırıldı). **Çözüm:** stream'i hiç HTTP/ASGI
+  katmanından tüketmemek — `stream_data()` ve `event_generator()`
+  fonksiyonlarını `asyncio.run()` ile **doğrudan** çağırıp `__anext__()` ile
+  tek bir kayıt çekmek. Bu hem `StreamingResponse`'un `media_type`'ını hem
+  gerçek bir SSE satırının üretildiğini doğruluyor, generator'ı hiç
+  sonuna kadar tüketmeden. **Ders:** bir generator'ı test ederken "sadece
+  ilk elemanı okuyorum" sanmak yetmez — sarmalayan taşıyıcının (burada
+  TestClient) kapanışta ne yaptığını da hesaba katmak gerekiyor.
+- **README** güncellendi: `## API server` bölümü eklendi (`uvicorn` ile
+  çalıştırma, üç endpoint'in özeti), `## Status` Faz 2'yi tamamlandı olarak
+  işaretliyor, sıradaki Faz 3 (istemci tarafı) olarak güncellendi.
+- **Doğrulama:** `pytest tests/` → 9/9 geçti, 5.13s.
+
+## Faz 2 tamamlandı
+
+8 alt-adım (2.1–2.8) + kapanış (2.9), toplamda backend artık hem çalışıyor
+hem test edilmiş hem çalıştırılabilir durumda. Sıradaki: Faz 3 (dashboard /
+istemci tarafı arayüz, `/api/stream`'i tüketip canlıymış gibi görselleştiren).
