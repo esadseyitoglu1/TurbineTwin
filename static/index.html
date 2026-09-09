@@ -9,6 +9,15 @@
     h1 { font-weight: 600; }
     #chart-wrap { max-width: 900px; height: 420px; }
 
+    #controls { display: flex; align-items: center; gap: 0.75rem; max-width: 900px; margin-bottom: 1rem; }
+    #controls span { font-size: 0.85rem; color: #a0aec0; }
+    .speed-btn {
+      background: #1a1d27; border: 1px solid #2a2e3a; color: #e6e6e6;
+      border-radius: 6px; padding: 0.4rem 0.9rem; font-size: 0.9rem; cursor: pointer;
+    }
+    .speed-btn:hover { border-color: #4fd1c5; }
+    .speed-btn.active { background: #4fd1c5; color: #0f1117; border-color: #4fd1c5; font-weight: 600; }
+
     #status-panel { display: flex; gap: 1rem; max-width: 900px; margin-bottom: 1.5rem; }
     .stat-card {
       flex: 1; background: #1a1d27; border: 1px solid #2a2e3a; border-radius: 8px;
@@ -23,6 +32,13 @@
 </head>
 <body>
   <h1>TurbineTwin — Live Power Curve</h1>
+
+  <div id="controls">
+    <span>Playback speed:</span>
+    <button class="speed-btn" data-speed="1">1x</button>
+    <button class="speed-btn" data-speed="10">10x</button>
+    <button class="speed-btn" data-speed="100">100x</button>
+  </div>
 
   <div id="status-panel">
     <div class="stat-card">
@@ -134,15 +150,48 @@
     // EventSource is the browser's built-in SSE client -- no library needed.
     // Same-origin (this page is served by the same FastAPI app as /api/stream),
     // so no CORS setup is required.
-    const source = new EventSource("/api/stream?speed=10");
-    source.onmessage = (event) => {
-      const point = JSON.parse(event.data);
-      addPoint(point);
-      updateStatusPanel(point);
-    };
-    source.onerror = () => {
-      console.error("Stream connection lost.");
-    };
+    //
+    // EventSource has no "change the URL" method -- speed is a query
+    // param baked into the connection, and the backend has no concept of
+    // "resume from where the last connection left off" (it always
+    // replays from row 0, see api.py's event_generator). So switching
+    // speed means: close the old connection, clear the chart/panel, and
+    // open a fresh one at the new speed -- the replay restarts from
+    // 2018-01-01 rather than continuing mid-stream.
+    let currentSource = null;
+
+    function startStream(speed) {
+      if (currentSource) {
+        currentSource.close();
+      }
+      chart.data.labels = [];
+      chart.data.datasets[0].data = [];
+      chart.data.datasets[1].data = [];
+      chart.update("none");
+
+      currentSource = new EventSource(`/api/stream?speed=${speed}`);
+      currentSource.onmessage = (event) => {
+        const point = JSON.parse(event.data);
+        addPoint(point);
+        updateStatusPanel(point);
+      };
+      currentSource.onerror = () => {
+        console.error("Stream connection lost.");
+      };
+    }
+
+    const speedButtons = document.querySelectorAll(".speed-btn");
+    speedButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        speedButtons.forEach((b) => b.classList.remove("active"));
+        button.classList.add("active");
+        startStream(Number(button.dataset.speed));
+      });
+    });
+
+    // Default: 10x, matches the button marked active on load.
+    document.querySelector('[data-speed="10"]').classList.add("active");
+    startStream(10);
   </script>
 </body>
 </html>

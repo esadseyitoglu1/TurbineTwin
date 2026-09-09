@@ -684,3 +684,32 @@ olarak daha doğru cevap vermiyor).
   doğrulandı. Görsel render kullanıcı tarafından tarayıcıda kontrol
   edilecek.
 - Mevcut 9 test hâlâ geçiyor.
+
+### Adım 3.5 — Hız kontrol düğmeleri
+
+- 1x/10x/100x için üç buton eklendi. Backend bu üç değeri Adım 2.8'de zaten
+  destekliyordu; bu adım sadece istemci tarafında bu parametreyi
+  seçilebilir yaptı.
+- **`EventSource`'un URL'i değiştirilemiyor — bu, "hız değiştir" işleminin
+  neden bir yeniden bağlanma olduğunu belirledi.** `EventSource` bir kere
+  açıldıktan sonra bağlandığı adresi güncellemenin bir yolu yok. Ayrıca
+  backend'de "kaldığı yerden devam et" diye bir kavram da yok —
+  `event_generator` her zaman `STATE["df"]`'in başından (`.iterrows()`)
+  başlıyor (bkz. `api.py`). Yani hız değiştirmek doğası gereği: eski
+  bağlantıyı `close()` ile kapat, grafiği ve paneli sıfırla, yeni `speed`
+  ile **2018-01-01'den yeniden başlayan** bir `EventSource` aç. Kaldığı
+  histerik zamandan devam etmiyor — bu bir sınırlama olarak NOTLAR'a
+  bilinçli şekilde not edildi, gizlenmedi.
+- `currentSource` değişkeni tek bir açık bağlantıyı takip ediyor;
+  `startStream(speed)` her çağrıldığında önce varsa eskisini kapatıyor —
+  aksi halde her tıklamada bir önceki stream de arka planda çalışmaya
+  devam eder, birden fazla `EventSource` aynı anda veri gönderirdi.
+- Varsayılan hız **10x** olarak ayarlandı (sayfa ilk açıldığında otomatik
+  başlıyor, "10x" butonu `active` görünüyor) — Adım 3.2'deki ilk
+  sürümle aynı davranış korunmuş oldu.
+- **Canlı doğrulama:** sunucu ayağa kaldırılıp (1) HTML içinde üç
+  butonun (`data-speed="1|10|100"`) ve `startStream`/`currentSource.close`
+  referanslarının bulunduğu, (2) backend'in üç `speed` değerinin
+  tamamında (`/api/stream?speed=1|10|100`) `text/event-stream` ile ilk
+  satırı sorunsuz döndürdüğü doğrulandı.
+- Mevcut 9 test hâlâ geçiyor.
