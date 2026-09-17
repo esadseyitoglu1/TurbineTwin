@@ -871,3 +871,45 @@ mantığı (retrieval) tamamen görünür ve test edilebilir; "generation"
 bilinçli olarak kural tabanlı bırakıldı, gerçek bir LLM'e bağlanmak
 istenirse `explain_anomaly()`'nin yapılandırılmış çıktısı doğrudan
 context olarak kullanılabilir. Sıradaki: Faz 5 (MCP sunucusu).
+
+## Faz 5 — MCP Sunucusu
+
+**Neden MCP burada anlamlı:** FastAPI sunucusu tarayıcı/HTTP istemcilerine
+hizmet veriyor. MCP, Claude Desktop veya Cursor gibi AI asistanların aynı
+türbin verisine doğrudan "tool call" yapabilmesini sağlıyor — HTTP API'si
+değil, bir AI iş akışı entegrasyonu.
+
+**mcp 2.x seçimi:** `mcp[cli]` paketi v2.2.0 zaten `.venv`'de kuruluydu.
+v1'deki `FastMCP` sınıfı v2'de `MCPServer` olarak yeniden adlandırılmış
+(paket hata mesajıyla migration guide'a yönlendiriyor — bu, iyi yazılmış
+hata mesajının canlı örneği). `run(transport="stdio")` → `asyncio.run(run_stdio_async())`.
+
+### Adım 5.1 — `mcp_server.py` + 3 araç
+
+- `get_turbine_summary()` — toplam satır, tarih aralığı, anomali sayısı ve
+  oranı, `healthy`/`moderate`/`degraded` durum etiketi.
+- `get_anomalies(limit=20)` — en yeni N anomaliyi döndürür; `limit` 200'de
+  sabitlendi (sonsuz büyük yanıt önlemi). Satırlar en-yeni-üstte sıralı.
+  `deviation_pct` negatif olmak zorunda — test bunu doğruluyor.
+- `explain_anomaly(timestamp)` — Faz 4'ün `explain_anomaly()` fonksiyonunu
+  doğrudan çağırıyor. Aynı retrieval mantığı, iki farklı yüzden erişilebilir:
+  HTTP (`/api/ask`) ve MCP. Kod tekrarı yok.
+
+- **Veri yükleme:** `mcp_server.py` modül düzeyinde `_load()` çağırıyor —
+  `import` anında bir kez çalışıyor. FastAPI'nin `lifespan` deseniyle aynı
+  amaç, ama `mcp.run_stdio_async()` kendi event loop'unu yönettiğinden
+  `asynccontextmanager` sarmalayıcısı gerekmiyor.
+- **Transport:** `asyncio.run(mcp.run_stdio_async())` — Claude Desktop'ın
+  `mcpServers` config'i bu process'i stdio üzerinden çalıştırır.
+- **Testler:** `tests/test_mcp_server.py` — 16 yeni test, tool handler'ları
+  doğrudan Python fonksiyonu olarak çağırıyor, MCP wire protocol test
+  edilmiyor. Faz 2-4'teki yaklaşımla birebir aynı: iş mantığı ayrı modülde,
+  test onu doğrudan çağırır.
+- **Doğrulama:** `pytest tests/` → **30/30 geçti** (14 eski + 16 yeni).
+
+## Faz 5 tamamlandı
+
+3 MCP aracı (`get_turbine_summary`, `get_anomalies`, `explain_anomaly`),
+stdio transport, mcp 2.x uyumlu. Aynı `turbinetwin` paket fonksiyonları
+hem FastAPI hem MCP yüzünden erişilebilir — sıfır kod tekrarı.
+Claude Desktop veya Cursor'a `mcpServers` config'e eklenerek kullanılabilir.
