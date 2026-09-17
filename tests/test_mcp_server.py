@@ -128,3 +128,4 @@ class TestExplainAnomaly:
             result = srv.explain_anomaly(ts)
             assert isinstance(result["answer"], str)
             assert len(result["answer"]) > 0
+

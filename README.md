@@ -89,6 +89,40 @@ step, no `npm install`.
   list to try it. See `NOTLAR.md` Phase 4 for why "generation" here is a
   template rather than an LLM call.
 
+### MCP server
+
+Exposes the same turbine data to AI assistants (Claude Desktop, Cursor)
+directly as tool calls, over the Model Context Protocol — no HTTP request
+required. Same underlying `turbinetwin` functions as the API/dashboard
+above; zero duplicated logic.
+
+```powershell
+$env:PYTHONPATH = "src"
+python -m turbinetwin.mcp_server
+```
+
+To use it from Claude Desktop, add it to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "turbinetwin": {
+      "command": "C:\\path\\to\\TurbineTwin\\.venv\\Scripts\\python.exe",
+      "args": ["-m", "turbinetwin.mcp_server"],
+      "env": { "PYTHONPATH": "C:\\path\\to\\TurbineTwin\\src" }
+    }
+  }
+}
+```
+
+Three tools are exposed:
+
+- `get_turbine_summary()` — row count, date range, anomaly count/percentage,
+  and a `healthy`/`moderate`/`degraded` status label.
+- `get_anomalies(limit=20)` — most recent flagged rows.
+- `explain_anomaly(timestamp)` — same rule-based RAG answer as `/api/ask`,
+  callable by name from the assistant's chat.
+
 ## Results
 
 **Power curve** — measured output vs. the theoretical curve. The S-curve,
@@ -140,5 +174,6 @@ so it was left out rather than half-implemented.
 ## Status
 
 Phase 1 (data + model), Phase 2 (FastAPI streaming service), Phase 3
-(dashboard), and Phase 4 (rule-based RAG for anomaly explanations)
-complete. See `NOTLAR.md` for the full decision log.
+(dashboard), Phase 4 (rule-based RAG for anomaly explanations), and Phase 5
+(MCP server exposing the same logic as tools for AI assistants) complete.
+See `NOTLAR.md` for the full decision log.

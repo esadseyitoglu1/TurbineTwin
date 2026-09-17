@@ -5,6 +5,4 @@ __pycache__/
 data/raw/*.csv
 data/processed/*.parquet
 
-outputs/figures/*.png
-
 .vscode/
