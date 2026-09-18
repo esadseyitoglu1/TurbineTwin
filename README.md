@@ -1,11 +1,33 @@
-# Wind Turbine Digital Twin (TurbineTwin)
+# TurbineTwin — Wind Turbine Digital Twin
 
-A prototype digital twin for wind turbine anomaly detection, built on real
-SCADA data from a wind farm in Turkey (2018, 10-minute resolution, ~50k
-records). Compares actual power output against the manufacturer's theoretical
-power curve to flag deviations from design behavior — the same problem
-described by Eksim Enerji's approach to digital twin technology: detecting
-when equipment drifts from its design values.
+[![Live Demo](https://img.shields.io/badge/Live_Demo-esadseyitoglu.xyz-22c55e?style=for-the-badge&logo=rocket)](http://esadseyitoglu.xyz)
+[![Python](https://img.shields.io/badge/Python-3.14-3776AB?style=for-the-badge&logo=python)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
+[![MCP](https://img.shields.io/badge/MCP-Model_Context_Protocol-8B5CF6?style=for-the-badge)](https://modelcontextprotocol.io)
+[![Tests](https://img.shields.io/badge/Tests-34%2F34_passing-22c55e?style=for-the-badge&logo=pytest)](tests/)
+
+**🌐 [Live Demo → http://esadseyitoglu.xyz](http://esadseyitoglu.xyz)**
+
+---
+
+When a turbine underperforms its design curve, operators typically find out
+weeks later — from maintenance reports. TurbineTwin detects it in real time,
+flags it with a plain-language explanation, and exposes the same logic as MCP
+tools so an AI assistant can query turbine health directly.
+
+Built on real SCADA data from a wind farm in Turkey (2018, 10-minute
+resolution, ~50k records). Compares actual power output against the
+manufacturer's theoretical power curve to flag deviations from design
+behavior — the same problem at the core of Eksim Enerji's digital twin
+approach: detecting when equipment drifts from its design values.
+
+The project deliberately demonstrates three layers working together on the same dataset:
+
+| Layer | What it does |
+|---|---|
+| **Anomaly detection** | Rule-based power-curve deviation vs. Isolation Forest comparison |
+| **RAG** | `/api/ask` explains each anomaly in natural language (retrieval + templated generation) |
+| **MCP server** | Exposes the same logic as AI-callable tools for Claude Desktop / Cursor |
 
 ## Why this approach
 
@@ -203,7 +225,12 @@ All three are covered by regression tests (`test_ask.py`,
 
 ## Status
 
-Phase 1 (data + model), Phase 2 (FastAPI streaming service), Phase 3
-(dashboard), Phase 4 (rule-based RAG for anomaly explanations), and Phase 5
-(MCP server exposing the same logic as tools for AI assistants) complete.
-See `NOTLAR.md` for the full decision log.
+All 5 phases complete. **Live at [http://esadseyitoglu.xyz](http://esadseyitoglu.xyz)** (Docker, Debian 12, nginx reverse proxy).
+
+- **Phase 1** — data loading, deviation metrics, threshold derivation, anomaly flagging, Isolation Forest comparison
+- **Phase 2** — FastAPI backend (`/api/health`, `/api/window`, `/api/stream`)
+- **Phase 3** — live dashboard (power-curve chart, status panel, playback speed control, anomaly list)
+- **Phase 4** — rule-based RAG (`/api/ask`) — click an anomaly row in the dashboard to explain it
+- **Phase 5** — MCP server exposing the same logic as AI-callable tools
+
+Test suite: **34/34 passing**. See `NOTLAR.md` for the full decision log.
