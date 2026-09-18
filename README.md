@@ -1,12 +1,12 @@
 # TurbineTwin — Wind Turbine Digital Twin
 
-[![Live Demo](https://img.shields.io/badge/Live_Demo-esadseyitoglu.xyz-22c55e?style=for-the-badge&logo=rocket)](http://esadseyitoglu.xyz)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-turbinetwin.esadseyitoglu.xyz-22c55e?style=for-the-badge&logo=rocket)](http://turbinetwin.esadseyitoglu.xyz)
 [![Python](https://img.shields.io/badge/Python-3.14-3776AB?style=for-the-badge&logo=python)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
 [![MCP](https://img.shields.io/badge/MCP-Model_Context_Protocol-8B5CF6?style=for-the-badge)](https://modelcontextprotocol.io)
 [![Tests](https://img.shields.io/badge/Tests-34%2F34_passing-22c55e?style=for-the-badge&logo=pytest)](tests/)
 
-**🌐 [Live Demo → http://esadseyitoglu.xyz](http://esadseyitoglu.xyz)**
+**🌐 [Live Demo → http://turbinetwin.esadseyitoglu.xyz](http://turbinetwin.esadseyitoglu.xyz)**
 
 ---
 
@@ -225,7 +225,7 @@ All three are covered by regression tests (`test_ask.py`,
 
 ## Status
 
-All 5 phases complete. **Live at [http://esadseyitoglu.xyz](http://esadseyitoglu.xyz)** (Docker, Debian 12, nginx reverse proxy).
+All 5 phases complete. **Live at [http://turbinetwin.esadseyitoglu.xyz](http://turbinetwin.esadseyitoglu.xyz)** (Docker, Debian 12, nginx reverse proxy).
 
 - **Phase 1** — data loading, deviation metrics, threshold derivation, anomaly flagging, Isolation Forest comparison
 - **Phase 2** — FastAPI backend (`/api/health`, `/api/window`, `/api/stream`)
