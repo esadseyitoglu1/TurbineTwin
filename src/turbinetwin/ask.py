@@ -42,13 +42,26 @@ def explain_anomaly(df: pd.DataFrame, timestamp: str, maintenance_records: list[
     Returns a structured result plus a template-generated sentence --
     this structured half is what a real LLM call would receive as
     context in a non-rule-based Generation step."""
-    ts = pd.Timestamp(timestamp)
+    # Parse defensively: `timestamp` is raw, unvalidated request input.
+    # An unparseable value used to raise here and bubble up as a bare 500
+    # from the API -- confirmed live with `?timestamp=<script>...`. Every
+    # answer string below echoes `ts` (the parsed, normalized value), never
+    # the raw `timestamp` argument, so nothing attacker-controlled reaches
+    # the response text that the dashboard later inserts into the page.
+    try:
+        ts = pd.Timestamp(timestamp)
+    except (ValueError, TypeError):
+        return {
+            "found_row": False,
+            "answer": "Invalid timestamp format.",
+        }
+
     row_matches = df[df["timestamp"] == ts]
 
     if row_matches.empty:
         return {
             "found_row": False,
-            "answer": f"No data point found at {timestamp}.",
+            "answer": f"No data point found at {ts}.",
         }
 
     row = row_matches.iloc[0]
@@ -58,7 +71,7 @@ def explain_anomaly(df: pd.DataFrame, timestamp: str, maintenance_records: list[
             "found_row": True,
             "is_anomaly": False,
             "answer": (
-                f"The reading at {timestamp} was not flagged as an anomaly "
+                f"The reading at {ts} was not flagged as an anomaly "
                 f"(deviation {row['deviation_norm'] * 100:.1f}%, state: {row['state']})."
             ),
         }
@@ -69,7 +82,7 @@ def explain_anomaly(df: pd.DataFrame, timestamp: str, maintenance_records: list[
     if matches:
         record = matches[0]  # newest/first overlapping record is enough for this scale
         answer = (
-            f"The reading at {timestamp} was flagged as an anomaly "
+            f"The reading at {ts} was flagged as an anomaly "
             f"(deviation {row['deviation_norm'] * 100:.1f}% at {row['wind_speed']:.1f} m/s wind), "
             f"but it falls within a logged maintenance window: {record['work_order']} "
             f"({record['start']:%Y-%m-%d %H:%M}-{record['end']:%H:%M}, technician {record['technician']}, "
@@ -84,7 +97,7 @@ def explain_anomaly(df: pd.DataFrame, timestamp: str, maintenance_records: list[
         }
 
     answer = (
-        f"The reading at {timestamp} was flagged as an anomaly "
+        f"The reading at {ts} was flagged as an anomaly "
         f"(deviation {row['deviation_norm'] * 100:.1f}% at {row['wind_speed']:.1f} m/s wind), "
         f"part of a {window['row_count']}-row cluster from {window['start']:%Y-%m-%d %H:%M} "
         f"to {window['end']:%H:%M}. No maintenance record overlaps this window -- "

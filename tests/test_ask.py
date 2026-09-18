@@ -74,3 +74,16 @@ def test_explain_anomaly_on_missing_timestamp():
     result = explain_anomaly(df, "2020-01-01 00:00", maintenance_records=[])
 
     assert result["found_row"] is False
+
+
+def test_explain_anomaly_on_malformed_timestamp_does_not_raise():
+    # `pd.Timestamp()` used to be called unguarded -- an unparseable value
+    # (e.g. a query param someone poked at, like "<script>alert(1)</script>")
+    # raised and bubbled up as a bare 500 from the API. Confirmed live; this
+    # is the regression test for the fix.
+    df = make_df([("2018-01-01 00:00", 5.3, -0.01, False, "normal")])
+
+    result = explain_anomaly(df, "<script>alert(1)</script>", maintenance_records=[])
+
+    assert result["found_row"] is False
+    assert "script" not in result["answer"].lower()

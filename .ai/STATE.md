@@ -1,6 +1,6 @@
 # TurbineTwin — Current State
 
-_Last verified: 2026-09-17_
+_Last verified: 2026-09-18_
 
 ## What works
 All 5 planned phases are complete and verified:
@@ -15,18 +15,21 @@ All 5 planned phases are complete and verified:
   `get_anomalies`, `explain_anomaly`. stdio transport, ready for Claude
   Desktop / Cursor `mcpServers` config.
 
-Test suite: **30/30 passing** (`pytest tests/`, verified 2026-09-17).
+Plus a presentation/hardening pass (2026-09-18, ahead of showing the repo
+externally): result figures are now committed (README images used to be
+broken on GitHub), README documents the MCP server and a "Security" section,
+and three real input-handling bugs found by manual testing were fixed —
+see DECISIONS.md and KNOWN_ISSUES.md.
 
-Last commit on `master`: `389cf8e` — "feat: add MCP server with 3 tools
-(Phase 5, Step 5.1)".
+Test suite: **34/34 passing** (`pytest tests/`, verified 2026-09-18).
+
+Repo is public and pushed: https://github.com/esadseyitoglu1/TurbineTwin
 
 ## Partially completed / rough edges
-- `tests/test_mcp_server.py` has one uncommitted change (a single trailing
-  blank line) as of 2026-09-17 — trivial, not yet committed or discarded.
-- `README.md`'s "Status" section still says "Phase 1-4 complete" — it was
-  never updated after the Phase 5 (MCP) commit. Not a functional bug, but
-  misleading to anyone (including another agent) skimming the README only.
+- A short demo GIF of the live dashboard is planned for the README but not
+  yet recorded/embedded (user needs to record it locally; not something an
+  agent can produce).
 
 ## Current blockers
-None. Project is functionally complete; remaining work is presentation
-polish before showing the repo externally (see NEXT.md).
+None. Project is functionally complete and public. Remaining work is
+optional presentation polish (see NEXT.md).

@@ -2,7 +2,7 @@ import asyncio
 import json
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -51,7 +51,11 @@ def health_check():
 
 
 @app.get("/api/window", response_model=list[TurbinePoint])
-def get_window(start: int = 0, limit: int = 100):
+def get_window(start: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=1000)):
+    # ge/le turn an out-of-range value into a clean 422 instead of, e.g.,
+    # a negative `start` silently wrapping to the end of the dataset via
+    # Python slicing, or an unbounded `limit` returning the full ~50k rows
+    # in one response.
     rows = STATE["df"].iloc[start:start + limit]
     return [row_to_dict(row) for _, row in rows.iterrows()]
 

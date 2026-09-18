@@ -245,13 +245,20 @@
         const response = await fetch(`/api/ask?timestamp=${encodeURIComponent(timestamp)}`);
         const result = await response.json();
 
-        const tag = result.explained_by_maintenance
-          ? '<span class="tag">Maintenance match</span>'
-          : '<span class="tag">Unexplained</span>';
         explanationBoxEl.className = result.explained_by_maintenance
           ? "explained-by-maintenance"
           : "unexplained";
-        explanationBoxEl.innerHTML = `${tag}<div>${result.answer}</div>`;
+
+        // Built with createElement/textContent, not innerHTML: `result.answer`
+        // is server-built text derived from request input (see ask.py), so
+        // it's treated as untrusted and never parsed as HTML on the way in.
+        explanationBoxEl.textContent = "";
+        const tagEl = document.createElement("span");
+        tagEl.className = "tag";
+        tagEl.textContent = result.explained_by_maintenance ? "Maintenance match" : "Unexplained";
+        const answerEl = document.createElement("div");
+        answerEl.textContent = result.answer;
+        explanationBoxEl.append(tagEl, answerEl);
       } catch (err) {
         explanationBoxEl.className = "";
         explanationBoxEl.textContent = "Could not reach /api/ask.";

@@ -171,6 +171,36 @@ message-queue-backed pipeline such as Kafka/RabbitMQ) to avoid race
 conditions. That's real infrastructure work, not a prototype-scale addition,
 so it was left out rather than half-implemented.
 
+## Security
+
+There's no database anywhere in this project (raw data is a CSV loaded into
+a pandas DataFrame; the maintenance log is a static JSON file) — so there's
+no SQL injection surface to test in the first place. The actual attack
+surface here is the two places user input reaches the app: the `timestamp`
+query param on `/api/ask`, and `start`/`limit` on `/api/window`. Both were
+tested by hand against malformed/malicious input:
+
+- **`GET /api/ask?timestamp=<script>alert(1)</script>`** used to raise
+  unguarded inside `pd.Timestamp()` and return a bare 500. Fixed: the parse
+  is now wrapped in a `try/except`, returning a clean
+  `{"found_row": false, "answer": "Invalid timestamp format."}` instead.
+  Every answer string also now echoes the *parsed* timestamp (`ts`), never
+  the raw request string, so no request-influenced text reaches the
+  response body unchanged.
+- **The dashboard's RAG answer box** (`static/index.html`) used to insert
+  that server text into the page via `innerHTML`. Even though the fix above
+  means nothing attacker-controlled reaches it today, it's now built with
+  `createElement`/`textContent` instead — defense in depth, so a future
+  change to `ask.py` can't silently reopen an HTML-injection path.
+- **`GET /api/window?start=-5&limit=999999999`** used to be accepted
+  silently: a negative `start` wraps around via plain Python slicing
+  instead of erroring, and `limit` was unbounded (a client could pull the
+  full ~50k-row dataset in one response). Fixed with FastAPI's
+  `Query(ge=0)` / `Query(le=1000)`, which now return a clean 422 instead.
+
+All three are covered by regression tests (`test_ask.py`,
+`test_api.py`) using the exact payloads that triggered them.
+
 ## Status
 
 Phase 1 (data + model), Phase 2 (FastAPI streaming service), Phase 3

@@ -54,6 +54,37 @@ def test_stream_rejects_invalid_speed():
     assert response.status_code == 422
 
 
+def test_window_rejects_negative_start():
+    # Previously silently accepted -- a negative `start` fed straight into
+    # `.iloc[start:...]` wraps around via plain Python slicing instead of
+    # erroring. Query(ge=0) turns that into a clean 422.
+    with TestClient(app) as client:
+        response = client.get("/api/window", params={"start": -5, "limit": 10})
+
+    assert response.status_code == 422
+
+
+def test_window_rejects_excessive_limit():
+    # Previously unbounded -- a client could request the full ~50k-row
+    # dataset in a single response. Query(le=1000) caps it.
+    with TestClient(app) as client:
+        response = client.get("/api/window", params={"start": 0, "limit": 999_999})
+
+    assert response.status_code == 422
+
+
+def test_ask_with_malformed_timestamp_returns_clean_response():
+    # Confirmed live before the fix: this raised inside pd.Timestamp() and
+    # the endpoint returned a bare 500. Now it's a normal 200 with
+    # found_row: False, same shape as any other "no match" answer.
+    with TestClient(app) as client:
+        response = client.get("/api/ask", params={"timestamp": "<script>alert(1)</script>"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["found_row"] is False
+
+
 def test_stream_endpoint_returns_sse_streaming_response():
     # Calls the route function directly (no ASGI/HTTP layer, no TestClient)
     # so the ~50k-row body is never touched -- only the envelope FastAPI

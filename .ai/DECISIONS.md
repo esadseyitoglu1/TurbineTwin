@@ -47,3 +47,23 @@
 - **mcp 2.x's `MCPServer`, not v1's `FastMCP`.** `mcp[cli]` v2.2.0 renamed
   the class; entry point is `asyncio.run(mcp.run_stdio_async())` instead of
   the old `mcp.run(transport="stdio")`.
+
+- **Security pass (2026-09-18) focused on real input-handling bugs, not a
+  generic checklist.** There's no database anywhere in the project (CSV →
+  pandas, JSON maintenance log), so SQL injection was never an applicable
+  vector — stated explicitly in the README instead of testing something
+  that doesn't exist. What *is* real: `/api/ask?timestamp=...` used to call
+  `pd.Timestamp()` unguarded and 500 on malformed input (confirmed live
+  with a `<script>` payload); fixed with a `try/except` returning
+  `{"found_row": false, "answer": "Invalid timestamp format."}`. All answer
+  strings in `ask.py` were also changed to echo the parsed `ts`, never the
+  raw `timestamp` argument, so no request-influenced text reaches a
+  response body verbatim. `/api/window` had unbounded `limit` and an
+  unvalidated negative `start` (silently wraps via Python slicing); fixed
+  with `Query(ge=0)` / `Query(le=1000)`. The dashboard's RAG answer box
+  (`static/index.html`) was switched from `innerHTML` string interpolation
+  to `createElement`/`textContent` as defense in depth, even though the
+  `ask.py` fix already means nothing attacker-controlled reaches it today.
+  See README "Security" section and `tests/test_ask.py` /
+  `tests/test_api.py` for the regression tests using the exact payloads
+  that triggered the original bugs.

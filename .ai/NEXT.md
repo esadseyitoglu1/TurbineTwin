@@ -1,13 +1,11 @@
 # TurbineTwin — Next
 
 ## Immediate
-1. Update `README.md`'s "Status" section to mention Phase 5 (MCP server) —
-   currently stale, stops at Phase 4.
-2. Commit or discard the pending one-line diff in `tests/test_mcp_server.py`.
-3. Add a short "how to wire this into Claude Desktop" example to the README
-   (mcpServers config snippet) — the user is about to show this repo to an
-   energy company's AI director for an internship application, and the MCP
-   piece is the most novel part to demonstrate.
+1. Record a short screen-capture GIF of the live dashboard (power curve
+   streaming + clicking an anomaly row to trigger the RAG explanation box)
+   and embed it in `README.md`. User needs to record this locally (ShareX
+   or similar) — an agent can't produce it, but can place/embed the file
+   and commit once it exists.
 
 ## Not started (deliberately out of scope for now)
 - Real-time data ingestion (replacing historical replay with a live feed).
