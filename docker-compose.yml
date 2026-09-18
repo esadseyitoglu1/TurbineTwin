@@ -1,0 +1,9 @@
+﻿services:
+  turbinetwin:
+    build: .
+    container_name: turbinetwin
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=src
