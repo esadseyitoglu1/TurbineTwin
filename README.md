@@ -145,6 +145,12 @@ Three tools are exposed:
 - `explain_anomaly(timestamp)` — same rule-based RAG answer as `/api/ask`,
   callable by name from the assistant's chat.
 
+**Example Scenario (in Claude Desktop):**
+> **You:** "What's the current status of the turbine?"  
+> **Claude:** *(Calls `get_turbine_summary`)* "The turbine is currently in a 'moderate' state. It has processed 50,530 rows, with 428 anomalies detected (~0.85%)."  
+> **You:** "Show me the most recent anomaly and explain why it happened."  
+> **Claude:** *(Calls `get_anomalies`, then calls `explain_anomaly` with the timestamp)* "The most recent anomaly occurred on Dec 31 at 23:50. It was flagged because the measured power was 0.0 kW while the theoretical expectation was 2300 kW. However, this overlaps with a logged maintenance window, so it's a planned outage, not a turbine fault."
+
 ## Results
 
 **Power curve** — measured output vs. the theoretical curve. The S-curve,
