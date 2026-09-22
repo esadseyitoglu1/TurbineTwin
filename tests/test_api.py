@@ -1,8 +1,10 @@
 import asyncio
+import json
 
 from fastapi.testclient import TestClient
 
 from turbinetwin.api import app, event_generator, stream_data
+from turbinetwin.config import DEMO_ANOMALY_START_MAINTENANCE, DEMO_ANOMALY_START_UNEXPLAINED
 
 # TestClient as a context manager (the `with` block) is required here --
 # it's what actually triggers `lifespan`, which is where STATE gets filled.
@@ -111,3 +113,80 @@ def test_event_generator_emits_one_sse_record_per_row():
 
     assert first_record.startswith("data: ")
     assert first_record.endswith("\n\n")
+
+
+def test_event_generator_start_skips_to_offset_not_row_zero():
+    # Regression test for the "first anomaly takes ~2.5 real-time minutes
+    # to reach at default speed" demo-usability issue an external reviewer
+    # flagged ahead of a presentation (2026-09-22): `start` must actually
+    # skip rows, not just get accepted and ignored.
+    async def get_first_record_at_offset(offset):
+        with TestClient(app):
+            generator = event_generator(speed=100, start=offset)
+            return await generator.__anext__()
+
+    first_at_zero = asyncio.run(get_first_record_at_offset(0))
+    first_at_offset = asyncio.run(get_first_record_at_offset(1475))
+
+    point_at_zero = json.loads(first_at_zero.removeprefix("data: ").strip())
+    point_at_offset = json.loads(first_at_offset.removeprefix("data: ").strip())
+
+    assert point_at_zero["timestamp"] != point_at_offset["timestamp"]
+    assert point_at_offset["timestamp"].startswith("2018-01-11")
+
+
+def test_stream_rejects_start_at_or_past_end_of_dataset():
+    with TestClient(app) as client:
+        response = client.get("/api/health")
+        total_rows = response.json()["rows_loaded"]
+        response = client.get("/api/stream", params={"speed": 100, "start": total_rows})
+
+    assert response.status_code == 422
+
+
+def test_stream_rejects_negative_start():
+    with TestClient(app) as client:
+        response = client.get("/api/stream", params={"speed": 100, "start": -1})
+
+    assert response.status_code == 422
+
+
+def test_demo_anomalies_returns_both_scenarios_with_valid_offsets():
+    with TestClient(app) as client:
+        health = client.get("/api/health")
+        total_rows = health.json()["rows_loaded"]
+        response = client.get("/api/demo-anomalies")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body.keys()) == {"unexplained", "maintenance"}
+    for key in ("unexplained", "maintenance"):
+        assert "label" in body[key]
+        assert 0 <= body[key]["start"] < total_rows
+    assert body["unexplained"]["start"] == DEMO_ANOMALY_START_UNEXPLAINED
+    assert body["maintenance"]["start"] == DEMO_ANOMALY_START_MAINTENANCE
+
+
+def test_demo_anomaly_offsets_actually_lead_into_their_intended_anomaly():
+    # The config comments claim specific row offsets land shortly before a
+    # specific timestamp's anomaly. This walks the real stream forward from
+    # each offset and confirms an is_anomaly=True row with the expected
+    # date actually shows up within a short lead-in, rather than trusting
+    # the comment in config.py to stay accurate.
+    async def find_first_anomaly_after(offset, max_rows=30):
+        with TestClient(app):
+            generator = event_generator(speed=100, start=offset)
+            for _ in range(max_rows):
+                record = await generator.__anext__()
+                point = json.loads(record.removeprefix("data: ").strip())
+                if point["is_anomaly"]:
+                    return point
+        return None
+
+    unexplained_point = asyncio.run(find_first_anomaly_after(DEMO_ANOMALY_START_UNEXPLAINED))
+    maintenance_point = asyncio.run(find_first_anomaly_after(DEMO_ANOMALY_START_MAINTENANCE))
+
+    assert unexplained_point is not None
+    assert unexplained_point["timestamp"].startswith("2018-01-11")
+    assert maintenance_point is not None
+    assert maintenance_point["timestamp"].startswith("2018-01-16")

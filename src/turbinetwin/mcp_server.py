@@ -90,20 +90,34 @@ def get_turbine_summary() -> dict:
     """
     total = len(_df)
     anomalies = int(_df["is_anomaly"].sum())
-    pct = round(anomalies / total * 100, 2)
+
+    # Anomalies are only ever flagged among in_range rows (see
+    # deviation.flag_anomalies), so the rate has to be taken over that same
+    # denominator. Dividing by `total` instead silently dilutes the rate by
+    # however many below-cut-in / above-cut-out rows exist in the window,
+    # which made the status label meaningless in practice (it always read
+    # "healthy" regardless of the actual in-range anomaly rate). Fixed
+    # 2026-09-22, flagged by an external review ahead of a demo.
+    in_range_total = int(_df["in_range"].sum())
+    pct = round(anomalies / in_range_total * 100, 2) if in_range_total else 0.0
 
     ts_min = _df["timestamp"].min()
     ts_max = _df["timestamp"].max()
 
-    if pct < 2:
+    # derive_threshold() flags roughly the bottom 1st percentile of in-range
+    # deviation by construction, so ~1% is the *expected* baseline rate, not
+    # a sign of trouble. Thresholds are set relative to that baseline rather
+    # than at round numbers that happened to sit below it.
+    if pct < 1.5:
         status = "healthy"
-    elif pct < 5:
+    elif pct < 3:
         status = "moderate"
     else:
         status = "degraded"
 
     return {
         "total_rows": total,
+        "in_range_rows": in_range_total,
         "date_from": ts_min.isoformat(),
         "date_to": ts_max.isoformat(),
         "anomaly_count": anomalies,

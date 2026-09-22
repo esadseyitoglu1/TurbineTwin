@@ -35,12 +35,19 @@ MISSING_TS       = "2020-06-15 12:00:00"   # veride yok
 class TestGetTurbineSummary:
     def test_returns_expected_keys(self):
         result = srv.get_turbine_summary()
-        for key in ("total_rows", "date_from", "date_to", "anomaly_count", "anomaly_pct", "status"):
+        for key in (
+            "total_rows", "in_range_rows", "date_from", "date_to",
+            "anomaly_count", "anomaly_pct", "status",
+        ):
             assert key in result, f"Missing key: {key}"
 
     def test_total_rows_positive(self):
         result = srv.get_turbine_summary()
         assert result["total_rows"] > 0
+
+    def test_in_range_rows_not_greater_than_total(self):
+        result = srv.get_turbine_summary()
+        assert 0 < result["in_range_rows"] <= result["total_rows"]
 
     def test_anomaly_count_within_bounds(self):
         result = srv.get_turbine_summary()
@@ -50,9 +57,34 @@ class TestGetTurbineSummary:
         result = srv.get_turbine_summary()
         assert 0 <= result["anomaly_pct"] <= 100
 
+    def test_anomaly_pct_is_rate_over_in_range_rows_not_total(self):
+        # Regression test: anomaly_pct used to divide by total_rows even
+        # though is_anomaly is only ever set within in_range rows, which
+        # silently diluted the rate and made "healthy" always trigger
+        # regardless of the real in-range anomaly rate. Fixed 2026-09-22.
+        result = srv.get_turbine_summary()
+        expected = round(result["anomaly_count"] / result["in_range_rows"] * 100, 2)
+        assert result["anomaly_pct"] == expected
+
+    def test_anomaly_pct_matches_derive_threshold_baseline(self):
+        # derive_threshold() flags ~the bottom 1st percentile of in-range
+        # deviation by construction, so the reported rate on the full
+        # dataset (no filtering) should land close to that ~1% baseline --
+        # not near 0% (the old total_rows-denominator bug) and not wildly
+        # above 1% (which would mean the percentile logic itself broke).
+        result = srv.get_turbine_summary()
+        assert 0.5 <= result["anomaly_pct"] <= 2.0
+
     def test_status_is_valid_label(self):
         result = srv.get_turbine_summary()
         assert result["status"] in ("healthy", "moderate", "degraded")
+
+    def test_status_thresholds_relative_to_baseline_rate(self):
+        # With the ~1%-by-construction baseline, the full (unfiltered)
+        # dataset should read "healthy" -- it's exactly the population the
+        # threshold was derived from, not a degraded subset.
+        result = srv.get_turbine_summary()
+        assert result["status"] == "healthy"
 
     def test_date_from_before_date_to(self):
         result = srv.get_turbine_summary()

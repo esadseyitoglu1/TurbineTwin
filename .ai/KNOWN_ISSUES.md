@@ -1,5 +1,16 @@
 # TurbineTwin — Known Issues
 
+- **Resolved 2026-09-22 (kept for context):** `get_turbine_summary`'s
+  `anomaly_pct` divided by `total_rows` instead of `in_range` row count,
+  making the `healthy`/`moderate`/`degraded` status label meaningless (it
+  always read "healthy"). Fixed — see DECISIONS.md and NOTLAR.md.
+
+- **Resolved 2026-09-22 (kept for context):** the live dashboard always
+  replayed from row 0, taking ~2.5 real-time minutes to reach the first
+  anomaly at default speed — a real problem for a timed demo. Fixed with
+  `/api/stream?start=` + two dashboard buttons backed by a new
+  `/api/demo-anomalies` endpoint. See NOTLAR.md.
+
 - **`README.md` "Status" section is stale.** Still reads "Phase 1-4
   complete"; Phase 5 (MCP server) shipped in commit `389cf8e` but the
   README was never updated. Cosmetic, but misleading to an external

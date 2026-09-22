@@ -234,9 +234,9 @@ All three are covered by regression tests (`test_ask.py`,
 All 5 phases complete. **Live at [http://turbinetwin.esadseyitoglu.xyz](http://turbinetwin.esadseyitoglu.xyz)** (Docker, Debian 12, nginx reverse proxy).
 
 - **Phase 1** — data loading, deviation metrics, threshold derivation, anomaly flagging, Isolation Forest comparison
-- **Phase 2** — FastAPI backend (`/api/health`, `/api/window`, `/api/stream`)
-- **Phase 3** — live dashboard (power-curve chart, status panel, playback speed control, anomaly list)
+- **Phase 2** — FastAPI backend (`/api/health`, `/api/window`, `/api/stream`, `/api/demo-anomalies`)
+- **Phase 3** — live dashboard (power-curve chart, status panel, playback speed control, anomaly list, "jump to a known anomaly" buttons)
 - **Phase 4** — rule-based RAG (`/api/ask`) — click an anomaly row in the dashboard to explain it
 - **Phase 5** — MCP server exposing the same logic as AI-callable tools
 
-Test suite: **34/34 passing**. See `NOTLAR.md` for the full decision log.
+Test suite: **43/43 passing**. See `NOTLAR.md` for the full decision log.

@@ -67,3 +67,22 @@
   See README "Security" section and `tests/test_ask.py` /
   `tests/test_api.py` for the regression tests using the exact payloads
   that triggered the original bugs.
+
+- **`anomaly_pct` in `get_turbine_summary` must divide by `in_range` row
+  count, not `total_rows`.** `is_anomaly` is only ever set within
+  `in_range` rows (see `flag_anomalies`), so dividing by the full dataset
+  silently dilutes the rate by however many below-cut-in/above-cut-out
+  rows exist — the `status` label was always reading "healthy" regardless
+  of the real in-range anomaly rate. Thresholds (1.5% / 3%) are set
+  relative to the ~1%-by-construction baseline from `derive_threshold`'s
+  percentile choice, not at round numbers that happened to sit below it.
+  Found by external review (Codex) 2026-09-22, see NOTLAR.md.
+
+- **`/api/stream`'s `start` param is validated by hand, not `Query(ge=0)`.**
+  `test_api.py` calls `stream_data()` directly as a Python function
+  (bypassing the ASGI layer) in several tests — a `Query(...)` default
+  only resolves to a plain value when FastAPI's request-handling layer is
+  involved, so using it here broke that direct-call test pattern
+  (`TypeError: '>=' not supported between instances of 'Query' and 'int'`).
+  `speed`'s allowed-values check already used manual validation for the
+  same reason; `start` follows the same pattern for consistency.

@@ -7,7 +7,12 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from turbinetwin.ask import explain_anomaly
-from turbinetwin.config import PROJECT_ROOT, SIMULATED_INTERVAL_SECONDS
+from turbinetwin.config import (
+    DEMO_ANOMALY_START_MAINTENANCE,
+    DEMO_ANOMALY_START_UNEXPLAINED,
+    PROJECT_ROOT,
+    SIMULATED_INTERVAL_SECONDS,
+)
 from turbinetwin.data_loader import load_raw
 from turbinetwin.deviation import (
     add_normalized_deviation, add_operating_state, derive_threshold, flag_anomalies,
@@ -60,11 +65,18 @@ def get_window(start: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=100
     return [row_to_dict(row) for _, row in rows.iterrows()]
 
 
-async def event_generator(speed: int):
+async def event_generator(speed: int, start: int = 0):
     # async generator: yields one SSE record, then awaits (yielding control
     # to the event loop -- NOT blocking it, unlike time.sleep) before the next.
+    #
+    # `start` lets a caller skip straight to a row offset instead of always
+    # replaying from row 0. Added so the dashboard's "jump to a known
+    # anomaly" buttons don't have to wait through several real-time minutes
+    # of normal operation before the point of interest streams in -- flagged
+    # as a real demo-usability problem by an external reviewer ahead of a
+    # presentation (2026-09-22).
     interval = SIMULATED_INTERVAL_SECONDS / speed
-    for _, row in STATE["df"].iterrows():
+    for _, row in STATE["df"].iloc[start:].iterrows():
         point = TurbinePoint(**row_to_dict(row))
         yield f"data: {point.model_dump_json()}\n\n"
         await asyncio.sleep(interval)
@@ -74,14 +86,43 @@ VALID_SPEEDS = (1, 10, 100)
 
 
 @app.get("/api/stream")
-async def stream_data(speed: int = 1):
+async def stream_data(speed: int = 1, start: int = 0):
     # Literal[1, 10, 100] looks cleaner but Pydantic 2.13 rejects the
     # string "10" -> int 10 coercion for int-typed Literal members here
     # (verified directly against Pydantic, not just FastAPI) -- so the
     # allowed-values check is done by hand instead.
+    #
+    # `start` is validated by hand (not Query(ge=0)) for the same reason
+    # `speed`'s allowed-values check is manual: test_api.py calls this
+    # route function directly, bypassing the ASGI layer that would
+    # otherwise resolve a Query(...) default into a plain int -- see
+    # test_stream_endpoint_returns_sse_streaming_response.
     if speed not in VALID_SPEEDS:
         raise HTTPException(status_code=422, detail=f"speed must be one of {VALID_SPEEDS}")
-    return StreamingResponse(event_generator(speed), media_type="text/event-stream")
+    total_rows = len(STATE["df"])
+    if start < 0 or start >= total_rows:
+        raise HTTPException(
+            status_code=422, detail=f"start must be in [0, {total_rows})"
+        )
+    return StreamingResponse(event_generator(speed, start), media_type="text/event-stream")
+
+
+@app.get("/api/demo-anomalies")
+def demo_anomalies():
+    # Backs the dashboard's "jump to a known anomaly" buttons -- the
+    # frontend asks the backend where to jump instead of hardcoding row
+    # offsets in static/index.html, so the two stay in sync if the dataset
+    # or the offsets in config.py ever change.
+    return {
+        "unexplained": {
+            "label": "Unexplained anomaly (no maintenance match)",
+            "start": DEMO_ANOMALY_START_UNEXPLAINED,
+        },
+        "maintenance": {
+            "label": "Anomaly explained by maintenance",
+            "start": DEMO_ANOMALY_START_MAINTENANCE,
+        },
+    }
 
 
 @app.get("/api/ask")

@@ -41,6 +41,15 @@
     .speed-btn:hover { border-color: #4fd1c5; }
     .speed-btn.active { background: #4fd1c5; color: #0f1117; border-color: #4fd1c5; font-weight: 600; }
 
+    #demo-controls { display: flex; align-items: center; gap: 0.75rem; max-width: 900px; margin-bottom: 1.5rem; }
+    #demo-controls span { font-size: 0.85rem; color: #a0aec0; }
+    .demo-btn {
+      background: #1a1d27; border: 1px solid #e0a050; color: #ffcf8a;
+      border-radius: 6px; padding: 0.4rem 0.9rem; font-size: 0.85rem; cursor: pointer;
+    }
+    .demo-btn:hover:not(:disabled) { background: #2a2115; }
+    .demo-btn:disabled { opacity: 0.5; cursor: default; }
+
     #status-panel { display: flex; gap: 1rem; max-width: 900px; margin-bottom: 1.5rem; }
     .stat-card {
       flex: 1; background: #1a1d27; border: 1px solid #2a2e3a; border-radius: 8px;
@@ -61,6 +70,12 @@
     <button class="speed-btn" data-speed="1">1x</button>
     <button class="speed-btn" data-speed="10">10x</button>
     <button class="speed-btn" data-speed="100">100x</button>
+  </div>
+
+  <div id="demo-controls">
+    <span>Jump to a known anomaly:</span>
+    <button class="demo-btn" id="demo-unexplained" disabled>Unexplained anomaly</button>
+    <button class="demo-btn" id="demo-maintenance" disabled>Explained by maintenance</button>
   </div>
 
   <div id="status-panel">
@@ -278,7 +293,11 @@
     // 2018-01-01 rather than continuing mid-stream.
     let currentSource = null;
 
-    function startStream(speed) {
+    // `start` (a row offset) is optional -- omitted, /api/stream replays
+    // from row 0 as before. Passed by the demo buttons below to jump
+    // straight to a known anomaly instead of waiting through real-time
+    // minutes of normal operation first.
+    function startStream(speed, start) {
       if (currentSource) {
         currentSource.close();
       }
@@ -288,7 +307,10 @@
       chart.update("none");
       resetAnomalyList(); // a restarted replay means "anomalies seen this session" restarts too
 
-      currentSource = new EventSource(`/api/stream?speed=${speed}`);
+      const url = start
+        ? `/api/stream?speed=${speed}&start=${start}`
+        : `/api/stream?speed=${speed}`;
+      currentSource = new EventSource(url);
       currentSource.onmessage = (event) => {
         const point = JSON.parse(event.data);
         addPoint(point);
@@ -303,13 +325,39 @@
     }
 
     const speedButtons = document.querySelectorAll(".speed-btn");
+    let currentSpeed = 10;
     speedButtons.forEach((button) => {
       button.addEventListener("click", () => {
         speedButtons.forEach((b) => b.classList.remove("active"));
         button.classList.add("active");
-        startStream(Number(button.dataset.speed));
+        currentSpeed = Number(button.dataset.speed);
+        startStream(currentSpeed);
       });
     });
+
+    // Demo buttons: fetch the row offsets from the backend (not hardcoded
+    // here, see /api/demo-anomalies) and jump the stream straight there at
+    // a slow, easy-to-follow speed. Disabled until the fetch resolves so a
+    // click can't race a request that hasn't returned yet.
+    const demoUnexplainedBtn = document.getElementById("demo-unexplained");
+    const demoMaintenanceBtn = document.getElementById("demo-maintenance");
+
+    fetch("/api/demo-anomalies")
+      .then((res) => res.json())
+      .then((demo) => {
+        demoUnexplainedBtn.disabled = false;
+        demoMaintenanceBtn.disabled = false;
+
+        demoUnexplainedBtn.addEventListener("click", () => {
+          speedButtons.forEach((b) => b.classList.remove("active"));
+          startStream(currentSpeed, demo.unexplained.start);
+        });
+        demoMaintenanceBtn.addEventListener("click", () => {
+          speedButtons.forEach((b) => b.classList.remove("active"));
+          startStream(currentSpeed, demo.maintenance.start);
+        });
+      })
+      .catch((err) => console.error("Could not load demo anomaly offsets:", err));
 
     // Default: 10x, matches the button marked active on load.
     document.querySelector('[data-speed="10"]').classList.add("active");

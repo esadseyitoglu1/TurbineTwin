@@ -913,3 +913,64 @@ hata mesajının canlı örneği). `run(transport="stdio")` → `asyncio.run(run
 stdio transport, mcp 2.x uyumlu. Aynı `turbinetwin` paket fonksiyonları
 hem FastAPI hem MCP yüzünden erişilebilir — sıfır kod tekrarı.
 Claude Desktop veya Cursor'a `mcpServers` config'e eklenerek kullanılabilir.
+
+## Sunum öncesi hardening — dış inceleme bulguları (2026-09-22, Codex)
+
+Eren Bey'e göstermeden önce Codex'e (kotası bu review'dan sonra bitti,
+Claude devraldı) bir dış gözle inceleme yaptırıldı. Üç bulgu, üçü de
+gerçekti:
+
+**1. Demo, asıl özelliğini geç gösteriyordu.** Varsayılan akış her zaman
+satır 0'dan (2018-01-01) başlıyordu; ilk anomaliye (satır 1475,
+2018-01-11) `speed=10`'da gerçek zamanlı ~2,5 dakika sürüyordu. Mülakatta
+"şimdi bekleyelim" demek istemediğim için:
+- `/api/stream`'e `start` (satır offset'i) parametresi eklendi —
+  `event_generator` artık `iloc[start:]`'tan başlıyor, `start` sınırları
+  (`0 <= start < total_rows`) elle doğrulanıyor (aynı `speed` validasyon
+  deseniyle, `Query(ge=0)` değil — çünkü `test_api.py` route fonksiyonunu
+  ASGI katmanı olmadan doğrudan çağırıyor, `Query` nesnesi orada çözülmez).
+- Yeni `/api/demo-anomalies` endpoint'i, iki hazır senaryonun offset'ini
+  döndürüyor: **unexplained** (2018-01-11 09:20, bakım kaydı yok, veri
+  setindeki ilk anomali) ve **maintenance** (2018-01-16 05:00, MNT-2018-0116
+  rotor rulman değişimiyle örtüşüyor — zaten `test_mcp_server.py`'de
+  `KNOWN_ANOMALY_TS` olarak kullanılıyordu).
+- Offset'ler `config.py`'de sabit (`DEMO_ANOMALY_START_UNEXPLAINED=1460`,
+  `DEMO_ANOMALY_START_MAINTENANCE=2153`), anomalinin ~15 satır (~2,5 saat
+  simüle zaman) öncesinden başlıyor ki grafik direkt sıçramaya değil, kısa
+  bir "normal seyir" öncesine açılsın.
+- Dashboard'a iki turuncu buton eklendi ("Unexplained anomaly" /
+  "Explained by maintenance"), offset'leri backend'den `fetch` ile çekiyor
+  (hardcode değil — dataset değişirse tek yerden, `config.py`'den güncellenir).
+- **Mülakat anı:** Codex'in önerisiyle, en güçlü demo anı bir anomaliye
+  atlayıp hemen ardından Claude Desktop/Cursor'dan MCP üzerinden
+  `explain_anomaly` ile aynı olayı sorgulamak — dashboard'daki "why" kutusu
+  ile MCP aracının aynı fonksiyonu çağırdığını canlı gösteriyor.
+
+**2. `get_turbine_summary`'nin `healthy` etiketi anlamsızdı.**
+`derive_threshold()` sadece `in_range` satırların (cut-in/cut-out arası)
+en düşük ~%1'ini eşik alıyor — yani `is_anomaly` tanımı gereği in-range
+verinin ~%1'i. Ama `anomaly_pct = anomaly_count / total_rows` hesaplanıyordu,
+`total_rows` değil `in_range` satır sayısına bölünmesi gerekirken. Sonuç:
+below-cut-in/above-cut-out satırları paydaya girip oranı yapay olarak
+sulandırıyordu, `pct < 2` eşiği pratikte hemen her zaman tetikleniyordu —
+etiket in-range performans hakkında hiçbir şey söylemiyordu.
+Düzeltme: payda `in_range` satır sayısı oldu, eşikler (~%1 baseline'a göre
+1.5/3) buna göre kalibre edildi, yanıta `in_range_rows` alanı eklendi.
+4 yeni regresyon testi (`test_anomaly_pct_is_rate_over_in_range_rows_not_total`
+dahil) — eskiden bu mantık hiç test edilmiyordu, sadece "status bir
+string mi" gibi gevşek kontroller vardı.
+
+**3. Sunum dilinde dikkat edilecek ifadeler.** Kod ve README zaten dürüst
+("template rather than an LLM call" diyor) — sorun konuşma diliydi.
+Kullanılmayacak: *"LLM ile arıza nedenini buluyor"*. Kullanılacak:
+*"Sapmaları bakım kayıtlarıyla ilişkilendiriyor (kural-tabanlı retrieval),
+sonucu hem dashboard'da hem MCP ile AI asistana açıyor."* Aynı çerçeve
+bakım kayıtları için de geçerli: gerçek saha kaydı değil, senkron olarak
+üretilmiş (`maintenance_log.json`) — "gerçek arıza geçmişi" değil "gerçekçi
+kurgulanmış bakım senaryosu" denecek. Veri akışı için de: "canlı veri" değil
+"tarihsel oynatım" (`/api/stream`, 2018 SCADA verisini zaman ölçekli replay
+ediyor).
+
+**Sonuç:** `pytest tests/` → **43/43 geçti** (34 eski + 9 yeni: 5 MCP
+regresyon testi + 4 API/stream testi). Detay: `.ai/DECISIONS.md` ve
+`.ai/KNOWN_ISSUES.md`.
