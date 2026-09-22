@@ -1,23 +1,19 @@
 # TurbineTwin — Next
 
 ## Immediate
-1. **Review and commit the 2026-09-22 changes** — both the Codex-review
-   fixes and the security-review pass (README.md, api.py, mcp_server.py,
-   static/index.html; security review intentionally left uncommitted for
-   the user to inspect first). Run `pytest tests/` once more right before
-   committing (43/43 passing as of this pass).
-2. Record a short screen-capture GIF of the live dashboard — ideally now
-   showing the new "jump to a known anomaly" buttons instead of waiting
-   through a slow real-time replay — and embed it in `README.md`. User
-   needs to record this locally (ShareX or similar) — an agent can't
-   produce it, but can place/embed the file and commit once it exists.
-3. Redeploy to production (78.135.85.106) to pick up the
-   `SecurityHeadersMiddleware` and other 2026-09-22 fixes — not done by
-   this review on purpose (deploy is the user's step, per project rules).
-4. Consider deleting the orphaned `nginx.conf` (unused — production
-   actually runs behind Caddy, see `docker-compose.yml`'s
-   `services_n8n_net` comment) or updating it to match reality; left as-is
-   by the security review since removing files was out of scope.
+1. Record a short screen-capture GIF of the live dashboard — ideally showing
+   the "jump to a known anomaly" buttons rather than waiting through a slow
+   real-time replay — and embed it in `README.md`. Needs to be captured
+   locally (ShareX or similar).
+2. Decide what to do with the orphaned `nginx.conf` at the repo root: it is
+   unused (production runs behind the host's shared Caddy proxy, see the
+   `services_n8n_net` comment in `docker-compose.yml`). Either delete it or
+   update it to match reality — right now it is misleading to a reader.
+
+## Known gaps, deliberately open
+See `KNOWN_ISSUES.md` for the two documented security scope decisions
+(no rate limiting on `/api/*`, container runs as root) — both need a real
+policy decision rather than a drive-by fix.
 
 ## Not started (deliberately out of scope for now)
 - Real-time data ingestion (replacing historical replay with a live feed).

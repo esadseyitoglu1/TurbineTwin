@@ -6,10 +6,9 @@ data from a wind farm in Turkey (2018, 10-minute resolution, ~50k records).
 Compares actual power output against the manufacturer's theoretical power
 curve to flag deviations from design behavior.
 
-Built to be shown to Eksim Enerji (energy company) — they gave a RAG/MCP
-training session; this project deliberately demonstrates both, framed around
-their digital-twin approach. Purpose: portfolio piece for an internship
-application, sitting on the user's GitHub.
+Started after a RAG/MCP training session, as an attempt to apply both to a
+real problem in the energy sector rather than a toy dataset — hence the
+framing around digital twins and industrial condition monitoring.
 
 ## Goals
 - Demonstrate real anomaly-detection reasoning (not a black-box model) on

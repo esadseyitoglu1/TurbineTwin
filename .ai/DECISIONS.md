@@ -92,7 +92,7 @@
   of the real in-range anomaly rate. Thresholds (1.5% / 3%) are set
   relative to the ~1%-by-construction baseline from `derive_threshold`'s
   percentile choice, not at round numbers that happened to sit below it.
-  Found by external review (Codex) 2026-09-22, see NOTLAR.md.
+  Found during an external review 2026-09-22, see NOTLAR.md.
 
 - **`/api/stream`'s `start` param is validated by hand, not `Query(ge=0)`.**
   `test_api.py` calls `stream_data()` directly as a Python function

@@ -20,8 +20,8 @@ Plus three hardening passes ahead of showing the repo externally:
 - **2026-09-18** — result figures committed (README images used to be
   broken on GitHub), README documents the MCP server and a "Security"
   section, three real input-handling bugs found by manual testing fixed.
-- **2026-09-22 (Codex review)** — found and Claude fixed three
-  presentation-readiness issues: the demo took ~2.5 real-time minutes to
+- **2026-09-22 (external review)** — three presentation-readiness issues
+  found and fixed: the demo took ~2.5 real-time minutes to
   reach the first anomaly (fixed with `/api/stream?start=` + two "jump to
   known anomaly" dashboard buttons backed by `/api/demo-anomalies`); the
   `get_turbine_summary` `healthy`/`moderate`/`degraded` status label was
@@ -31,8 +31,8 @@ Plus three hardening passes ahead of showing the repo externally:
   deviations against maintenance records via rule-based retrieval, exposes
   it to an AI assistant through MCP"). See NOTLAR.md's "Sunum öncesi
   hardening" section and DECISIONS.md for the full reasoning.
-- **2026-09-22 (pre-outreach security review, Claude)** — full pass ahead
-  of a WhatsApp internship pitch (OtoPriz/Eksim). No DB (CSV/pandas only,
+- **2026-09-22 (security review)** — full defensive pass over the codebase.
+  No DB (CSV/pandas only,
   confirmed no injection surface), no secrets ever committed (checked
   `git log --all --full-history`), `pip-audit` clean, production debug
   mode off (verified live: malformed input returns clean 4xx, no stack
@@ -68,8 +68,8 @@ Live: https://turbinetwin.esadseyitoglu.xyz
 
 ## Partially completed / rough edges
 - A short demo GIF of the live dashboard is planned for the README but not
-  yet recorded/embedded (user needs to record it locally; not something an
-  agent can produce).
+  yet recorded/embedded (needs to be captured locally from the running
+  dashboard).
 
 ## Current blockers
 None. Project is functionally complete and public. Remaining work is

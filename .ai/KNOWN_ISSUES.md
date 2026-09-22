@@ -6,7 +6,7 @@
   gap if the app ever handles sensitive data. Would belong at the Caddy
   layer (or `slowapi` in-app) rather than being bolted onto `api.py`
   without a clear policy (per-IP? per-route? what response on 429?) —
-  that's a design decision for the user, not a one-line fix.
+  that's a design decision, not a one-line fix.
 - **Docker image runs as root** (no `USER` directive in `Dockerfile`).
   Found during the 2026-09-22 security review, left unfixed — low risk
   given the container has no volume mounts of sensitive host paths and is
