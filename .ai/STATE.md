@@ -56,8 +56,15 @@ Test suite: **43/43 passing** (`pytest tests/`, verified 2026-09-22 after
 the security fixes above).
 
 Repo is public and pushed: https://github.com/esadseyitoglu1/TurbineTwin
-(2026-09-22 changes, including this security pass, not yet
-committed/pushed — user reviews and commits manually, see NEXT.md).
+Commit `e528f96` pushed and **deployed to production** (2026-09-22):
+server's checkout was 2 commits behind (still had the uncommitted-on-server
+version of the `docker-compose.yml` network fix as an unstaged edit,
+content-identical to `c446f40` — stashed, fast-forwarded, stash dropped,
+no data lost), then `docker compose up -d --build`. Verified live:
+`/api/health` OK, security headers present (CSP/X-Frame-Options/
+X-Content-Type-Options/Referrer-Policy), Playwright confirms the dashboard
+chart still renders (CSP didn't break Chart.js), no console/page errors.
+Live: https://turbinetwin.esadseyitoglu.xyz
 
 ## Partially completed / rough edges
 - A short demo GIF of the live dashboard is planned for the README but not
