@@ -229,9 +229,41 @@ tested by hand against malformed/malicious input:
 All three are covered by regression tests (`test_ask.py`,
 `test_api.py`) using the exact payloads that triggered them.
 
+**2026-09-22 review (external, pre-outreach hardening pass).** Also checked:
+dependency vulnerabilities (`pip-audit` — none found), whether secrets/`.env`
+files were ever committed (`git log` over the full history — none), and CORS
+(no `CORSMiddleware` is installed; the dashboard is served same-origin by
+the same FastAPI app, so none is needed and none is a gap). Two real gaps
+were found and fixed:
+
+- **No HTTP security headers were sent** (`X-Content-Type-Options`,
+  `X-Frame-Options`, `Content-Security-Policy`, `Referrer-Policy`) —
+  confirmed missing on the live site. Added via a small
+  `SecurityHeadersMiddleware` in `api.py`; the CSP allows the dashboard's
+  actual script sources (self + the Chart.js CDN + its own inline
+  `<script>`/`<style>`, since it has no build step) rather than a
+  generic-but-wrong `default-src 'self'` that would have broken the chart.
+- **`mcp_server.py`'s `get_anomalies(limit=...)` only clamped the upper
+  bound.** A negative `limit` hit pandas' `.head(-n)` semantics (returns
+  *almost the whole table*, the opposite of what a negative limit implies)
+  instead of erroring. Now clamped to `[1, 200]`.
+
+Not fixed, left as known scope/limitations (see `.ai/KNOWN_ISSUES.md`):
+
+- **No rate limiting** on any `/api/*` route. Acceptable for a portfolio
+  demo with no auth and no write operations, but a real gap if this app
+  ever handles meaningfully sensitive data or cost-bearing operations;
+  would belong at the Caddy layer (or `slowapi`) rather than in the app
+  itself. Mass-targeting/DoS testing was out of scope for this review.
+- **The Docker image runs as root** (no `USER` directive in `Dockerfile`).
+  Low risk for a single-container, no-database, read-only-after-startup
+  app with no volume mounts of sensitive host paths, but it's the kind of
+  default-not-hardened choice worth calling out rather than leaving
+  implicit.
+
 ## Status
 
-All 5 phases complete. **Live at [http://turbinetwin.esadseyitoglu.xyz](http://turbinetwin.esadseyitoglu.xyz)** (Docker, Debian 12, nginx reverse proxy).
+All 5 phases complete. **Live at [https://turbinetwin.esadseyitoglu.xyz](https://turbinetwin.esadseyitoglu.xyz)** (Docker, Debian 12, Caddy reverse proxy with automatic HTTPS).
 
 - **Phase 1** — data loading, deviation metrics, threshold derivation, anomaly flagging, Isolation Forest comparison
 - **Phase 2** — FastAPI backend (`/api/health`, `/api/window`, `/api/stream`, `/api/demo-anomalies`)

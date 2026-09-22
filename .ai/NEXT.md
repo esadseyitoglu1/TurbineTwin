@@ -1,16 +1,23 @@
 # TurbineTwin — Next
 
 ## Immediate
-1. **Commit and push the 2026-09-22 hardening changes** (not yet done —
-   `api.py`, `mcp_server.py`, `config.py`, `static/index.html`,
-   `tests/test_api.py`, `tests/test_mcp_server.py`, NOTLAR.md, all three
-   `.ai/*.md` files). Run `pytest tests/` once more right before committing.
+1. **Review and commit the 2026-09-22 changes** — both the Codex-review
+   fixes and the security-review pass (README.md, api.py, mcp_server.py,
+   static/index.html; security review intentionally left uncommitted for
+   the user to inspect first). Run `pytest tests/` once more right before
+   committing (43/43 passing as of this pass).
 2. Record a short screen-capture GIF of the live dashboard — ideally now
    showing the new "jump to a known anomaly" buttons instead of waiting
    through a slow real-time replay — and embed it in `README.md`. User
    needs to record this locally (ShareX or similar) — an agent can't
    produce it, but can place/embed the file and commit once it exists.
-3. Fix the stale README "Status" section (still says "Phase 1-4 complete").
+3. Redeploy to production (78.135.85.106) to pick up the
+   `SecurityHeadersMiddleware` and other 2026-09-22 fixes — not done by
+   this review on purpose (deploy is the user's step, per project rules).
+4. Consider deleting the orphaned `nginx.conf` (unused — production
+   actually runs behind Caddy, see `docker-compose.yml`'s
+   `services_n8n_net` comment) or updating it to match reality; left as-is
+   by the security review since removing files was out of scope.
 
 ## Not started (deliberately out of scope for now)
 - Real-time data ingestion (replacing historical replay with a live feed).

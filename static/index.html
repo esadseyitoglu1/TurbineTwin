@@ -229,12 +229,23 @@
 
       const row = document.createElement("tr");
       row.dataset.timestamp = point.timestamp; // read back on click, see askAboutRow()
-      row.innerHTML = `
-        <td>${point.timestamp.slice(0, 16).replace("T", " ")}</td>
-        <td>${point.wind_speed.toFixed(1)}</td>
-        <td>${point.active_power_kw.toFixed(0)}</td>
-        <td>${point.deviation_pct.toFixed(1)}%</td>
-      `;
+      // Built with createElement/textContent, not innerHTML: `point` fields
+      // are numbers/an ISO timestamp from the trusted local dataset today,
+      // not free-text user input, but this keeps the same defense-in-depth
+      // pattern as the /api/ask answer box below (see DECISIONS.md) instead
+      // of being the one place in the dashboard still doing string-built
+      // HTML.
+      const cells = [
+        point.timestamp.slice(0, 16).replace("T", " "),
+        point.wind_speed.toFixed(1),
+        point.active_power_kw.toFixed(0),
+        `${point.deviation_pct.toFixed(1)}%`,
+      ];
+      for (const text of cells) {
+        const td = document.createElement("td");
+        td.textContent = text;
+        row.appendChild(td);
+      }
       row.addEventListener("click", () => askAboutRow(point.timestamp));
       anomalyRowsEl.prepend(row); // newest first
 

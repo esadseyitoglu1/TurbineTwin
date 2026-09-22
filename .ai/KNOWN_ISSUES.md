@@ -1,5 +1,26 @@
 # TurbineTwin — Known Issues
 
+- **No rate limiting on any `/api/*` route.** Found during the 2026-09-22
+  security review, left unfixed (documented in README "Security" instead).
+  Acceptable for a portfolio demo with no auth/write operations, but a real
+  gap if the app ever handles sensitive data. Would belong at the Caddy
+  layer (or `slowapi` in-app) rather than being bolted onto `api.py`
+  without a clear policy (per-IP? per-route? what response on 429?) —
+  that's a design decision for the user, not a one-line fix.
+- **Docker image runs as root** (no `USER` directive in `Dockerfile`).
+  Found during the 2026-09-22 security review, left unfixed — low risk
+  given the container has no volume mounts of sensitive host paths and is
+  read-only-after-startup, but adding a non-root user wasn't done blind
+  since it can break `COPY`'d file ownership/permissions inside the image
+  in ways worth testing deliberately rather than as a drive-by fix.
+- **`nginx.conf` at the repo root is orphaned/stale.** Not referenced by
+  `Dockerfile` or `docker-compose.yml` — production actually runs behind
+  the host's shared Caddy reverse proxy (confirmed live: `Server: Caddy`
+  header, see docker-compose.yml's `services_n8n_net` comment). The
+  README's "nginx reverse proxy" claim was corrected to Caddy on
+  2026-09-22; the file itself was left in place (deleting it was out of
+  scope for that review) — see NEXT.md.
+
 - **Resolved 2026-09-22 (kept for context):** a rebuild
   (`docker compose up --build`) recreated the `turbinetwin` container
   without the manually-added `services_n8n_net` connection the host's

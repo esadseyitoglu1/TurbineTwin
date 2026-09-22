@@ -1,5 +1,21 @@
 # TurbineTwin — Decisions
 
+- **CSP header is not a bare `default-src 'self'`.** `static/index.html`
+  loads Chart.js from `cdn.jsdelivr.net` and has an inline `<script>`/
+  `<style>` block (no build step, by design — see the "no build step" note
+  elsewhere in this doc). `SecurityHeadersMiddleware` in `api.py` (added
+  2026-09-22) allows `script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net`
+  and `style-src 'self' 'unsafe-inline'` instead, verified against the
+  actual `<script src>`/`<style>` tags rather than assumed. `object-src
+  'none'` and `frame-ancestors 'none'` are unconditional since nothing in
+  the app needs plugins or framing.
+- **HSTS is not set by the app itself.** TLS termination happens at the
+  host's Caddy reverse proxy (`services_n8n_net`, see docker-compose.yml
+  comment), not at uvicorn — the container is also reachable over plain
+  HTTP inside the docker network, so an app-level HSTS header would be
+  asserting something the app itself doesn't control. If HSTS is wanted,
+  it belongs in the Caddyfile, not here.
+
 - **Deviation normalized by `rated_power` (a constant), not by
   `theoretical_power_kw`.** Dividing by the theoretical value blows up near
   cut-in wind speed, where it approaches zero (confirmed live: produced

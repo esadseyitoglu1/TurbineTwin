@@ -140,7 +140,11 @@ def get_anomalies(limit: int = 20) -> list[dict]:
     Each row contains timestamp, wind_speed, active_power_kw, theoretical_power_kw,
     and deviation_pct (normalised deviation expressed as a percentage).
     """
-    limit = min(limit, 200)  # guard against accidentally huge responses
+    # Clamp both ends: an unclamped upper bound risks accidentally huge
+    # responses, and a negative limit isn't just "0 rows" -- pandas'
+    # .head(-n) returns all-but-the-last-n rows, i.e. almost the whole
+    # anomaly table, the opposite of what a negative limit implies.
+    limit = max(1, min(limit, 200))
 
     anomaly_df = (
         _df[_df["is_anomaly"]]

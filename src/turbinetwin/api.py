@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from turbinetwin.ask import explain_anomaly
 from turbinetwin.config import (
@@ -48,6 +49,39 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="TurbineTwin API", lifespan=lifespan)
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Adds baseline hardening headers absent from FastAPI/uvicorn defaults.
+    Found missing on every response (including in production, verified live
+    2026-09-22) by an external security review -- nothing here changes
+    behavior, it only tells the browser to be stricter about how the
+    response it already received may be used.
+    """
+
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        # Not a bare "default-src 'self'": static/index.html loads Chart.js
+        # from jsdelivr and has an inline <style>/<script> block (no build
+        # step, see the StaticFiles mount comment below), so a stricter
+        # policy would silently break the live dashboard. This still blocks
+        # the two things that matter for a same-origin app with no forms:
+        # framing (frame-ancestors) and any *other* third-party script/object
+        # source (object-src, default-src).
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline'; "
+            "object-src 'none'; "
+            "frame-ancestors 'none'"
+        )
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 
 @app.get("/api/health")
