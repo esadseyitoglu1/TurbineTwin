@@ -6,7 +6,13 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     body { font-family: system-ui, sans-serif; margin: 2rem; background: #0f1117; color: #e6e6e6; }
-    h1 { font-weight: 600; }
+    h1 { font-weight: 600; margin-bottom: 0.5rem; }
+    #intro {
+      max-width: 900px; margin: 0 0 1.5rem; font-size: 0.9rem;
+      line-height: 1.6; color: #a0aec0;
+    }
+    #intro strong { color: #e6e6e6; }
+    #intro em { color: #4fd1c5; font-style: normal; }
     #chart-wrap { max-width: 900px; height: 420px; }
 
     #anomaly-panel { max-width: 900px; margin-top: 1.5rem; }
@@ -64,6 +70,16 @@
 </head>
 <body>
   <h1>TurbineTwin — Live Power Curve</h1>
+  <p id="intro">
+    Real SCADA data from a wind farm in Turkey, replayed in order. The solid
+    line is what the turbine actually produced; the dotted line is what the
+    manufacturer's power curve expected it to produce. When the gap gets wide
+    enough, the reading is flagged as an anomaly.
+    <br>
+    <strong>Start here:</strong> hit <em>Unexplained anomaly</em> to jump
+    straight to one, then click the flagged row that appears under the chart
+    to see why it was flagged.
+  </p>
 
   <div id="controls">
     <span>Playback speed:</span>
