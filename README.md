@@ -23,11 +23,11 @@ approach: detecting when equipment drifts from its design values.
 
 The project deliberately demonstrates three layers working together on the same dataset:
 
-| Layer | What it does | Where it lives |
-|---|---|---|
-| **Anomaly detection** | Rule-based power-curve deviation vs. Isolation Forest comparison | `src/turbinetwin/deviation.py` (`flag_anomalies`, `run_isolation_forest`), surfaced in the dashboard's live status panel |
-| **RAG** | Retrieves the flagged reading + any overlapping maintenance record, then generates a plain-language verdict | `src/turbinetwin/ask.py` + `maintenance.py` → `GET /api/ask`, triggered by clicking any anomaly row |
-| **MCP server** | Exposes the same three functions as AI-callable tools, no HTTP needed | `src/turbinetwin/mcp_server.py`, used from Claude Desktop / Cursor |
+| Layer | What it does | Where it lives | Details |
+|---|---|---|---|
+| **Anomaly detection** | Rule-based power-curve deviation, compared against sklearn's Isolation Forest | `deviation.py` → dashboard status panel | [↓](#1-anomaly-detection--deviationpy) |
+| **RAG** | Retrieves the flagged reading + any overlapping maintenance record, then generates a plain-language verdict | `ask.py` + `maintenance.py` → `GET /api/ask` | [↓](#2-rag--askpy--maintenancepy--get-apiask) |
+| **MCP server** | Exposes the same three functions as AI-callable tools, no HTTP needed | `mcp_server.py` → Claude Desktop / Cursor | [↓](#3-mcp-server--mcp_serverpy) |
 
 All three read the same in-memory dataset and share the same detection code —
 the RAG endpoint and the MCP tools are two different front doors onto one
@@ -46,32 +46,27 @@ On the [live demo](https://turbinetwin.esadseyitoglu.xyz) — no setup, no login
    power, deviation %, and the state label (normal / idle / anomaly) update
    live over Server-Sent Events. Anomalous readings accumulate in the table
    below the chart.
-3. **Ask *why* — this is the RAG layer.** Click any row in that anomaly
-   table. The app calls `/api/ask?timestamp=...`, which *retrieves* the
-   flagged reading plus any maintenance record covering that timestamp, then
-   *generates* a verdict: either "this overlaps planned maintenance" or
-   "this is genuine, unexplained underperformance."
+3. **Ask *why* — this is the [RAG layer](#2-rag--askpy--maintenancepy--get-apiask).**
+   Click any row in that anomaly table. The app calls
+   `/api/ask?timestamp=...`, which *retrieves* the flagged reading plus any
+   maintenance record covering that timestamp, then *generates* a verdict:
+   either "this overlaps planned maintenance" or "this is genuine,
+   unexplained underperformance."
 4. **Compare the two causes.** Now click **"Explained by maintenance"**
    (row 2153) and ask about a row there. Same detector, same endpoint,
    opposite conclusion — a downtime the log accounts for. That contrast is
    the point: flagging an anomaly is easy, *triaging* it is the useful part.
 5. **(Optional) Query it as an AI tool.** Everything above is also reachable
-   over MCP — see [MCP server](#mcp-server) below. In Claude Desktop you can
+   over MCP — see [MCP server](#3-mcp-server--mcp_serverpy) below. In Claude Desktop you can
    ask "is this turbine healthy?" and it calls `get_turbine_summary()`
    itself, then drills into `explain_anomaly(timestamp)`.
 
-### Where "RAG" actually applies here
+## How it works
 
-Worth being precise, since the term is overloaded: retrieval is a rule-based
-lookup over a structured maintenance log (timestamp-interval matching), and
-generation is a **template**, not an LLM call. That was a deliberate choice —
-for a question with a verifiable answer ("was this window under maintenance?"),
-a template can't hallucinate a downtime that never happened, and the whole
-path stays testable. The LLM sits one layer up: via MCP, an assistant decides
-*which* of these tools to call and chains them. Reasoning in `NOTLAR.md`,
-Phase 4.
+Three layers, in the order data moves through them: detection flags a
+reading, RAG explains it, MCP exposes both to an assistant.
 
-## Why this approach
+### 1. Anomaly detection — `deviation.py`
 
 The dataset ships with a manufacturer-provided theoretical power curve, so
 "expected output" doesn't need to be modeled — anomaly detection reduces
@@ -96,6 +91,38 @@ decisions:
   Isolation Forest flags rare-but-healthy high-wind operation (statistical
   rarity), while the rule-based approach flags genuine underperformance
   relative to the design curve. See `NOTLAR.md` for the full analysis.
+
+### 2. RAG — `ask.py` + `maintenance.py` → `GET /api/ask`
+
+Detection says *that* a reading is off. This layer answers *why*, which is
+the part an operator actually acts on: a genuine fault needs a technician,
+a logged maintenance window needs nothing.
+
+- **Retrieval** — given a timestamp, it pulls the flagged reading, widens to
+  the surrounding anomaly cluster, and looks for a maintenance record whose
+  interval covers it (`maintenance.py`, over a structured JSON log).
+- **Generation** — a **template**, not an LLM call, producing either
+  "overlaps planned maintenance" or "genuine, unexplained underperformance."
+
+**Why a template and not an LLM:** the question has a verifiable answer, so
+a template structurally can't hallucinate a downtime that never happened,
+and the whole path stays unit-testable. The LLM sits one layer up (see
+below), deciding *which* tool to call rather than inventing the facts. Full
+reasoning in `NOTLAR.md`, Phase 4.
+
+Try it: click any row in the dashboard's anomaly table, or call
+`GET /api/ask?timestamp=2018-01-11 09:40:00` directly.
+
+### 3. MCP server — `mcp_server.py`
+
+The same three functions, exposed as tools an AI assistant can call itself
+over the Model Context Protocol — no HTTP, no glue code, zero duplicated
+logic. This is where an LLM does belong: it decides which tool answers the
+question and chains them ("is the turbine healthy?" → `get_turbine_summary`
+→ `get_anomalies` → `explain_anomaly`).
+
+Setup, the `claude_desktop_config.json` snippet, and a worked example
+conversation are in [Running the MCP server](#running-the-mcp-server) below.
 
 ## Setup
 
@@ -153,7 +180,7 @@ step, no `npm install`.
   list to try it. See `NOTLAR.md` Phase 4 for why "generation" here is a
   template rather than an LLM call.
 
-### MCP server
+### Running the MCP server
 
 Exposes the same turbine data to AI assistants (Claude Desktop, Cursor)
 directly as tool calls, over the Model Context Protocol — no HTTP request
@@ -242,6 +269,13 @@ conditions. That's real infrastructure work, not a prototype-scale addition,
 so it was left out rather than half-implemented.
 
 ## Security
+
+**Summary:** no SQL injection surface (there's no database), no secrets ever
+committed (full git history checked), `pip-audit` clean, and every input
+path tested by hand against malformed/malicious payloads. Five real issues
+were found across two review passes and fixed, each with a regression test.
+Two gaps are deliberately left open and documented rather than quietly
+ignored: no rate limiting, and the container runs as root. Details below.
 
 There's no database anywhere in this project (raw data is a CSV loaded into
 a pandas DataFrame; the maintenance log is a static JSON file) — so there's
