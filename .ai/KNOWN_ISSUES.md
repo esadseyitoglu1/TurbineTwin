@@ -1,5 +1,15 @@
 # TurbineTwin — Known Issues
 
+- **Resolved 2026-09-22 (kept for context):** a rebuild
+  (`docker compose up --build`) recreated the `turbinetwin` container
+  without the manually-added `services_n8n_net` connection the host's
+  shared Caddy reverse proxy needs to resolve it by name, causing a 502
+  on the public URL. `docker-compose.yml` now declares that network as
+  `external: true` so `docker compose up` recreates the connection
+  itself. See NOTLAR.md "Deploy incident'i" for the full story — same
+  failure class as OtoŞarj's `.env.production` git incident (a manual,
+  out-of-band fix that an automated step silently undid).
+
 - **Resolved 2026-09-22 (kept for context):** `get_turbine_summary`'s
   `anomaly_pct` divided by `total_rows` instead of `in_range` row count,
   making the `healthy`/`moderate`/`degraded` status label meaningless (it

@@ -974,3 +974,37 @@ ediyor).
 **Sonuç:** `pytest tests/` → **43/43 geçti** (34 eski + 9 yeni: 5 MCP
 regresyon testi + 4 API/stream testi). Detay: `.ai/DECISIONS.md` ve
 `.ai/KNOWN_ISSUES.md`.
+
+## Deploy incident'i: rebuild, container'ı Caddy'nin göremediği network'e attı (2026-09-22)
+
+Yukarıdaki kod değişikliklerini sunucuya almak için `git pull` +
+`docker compose up -d --build` çalıştırıldı. Build başarılıydı ama
+`turbinetwin.esadseyitoglu.xyz` **502** vermeye başladı. Caddy log'unda:
+`"dial tcp: lookup turbinetwin on 127.0.0.11:53: no such host"`.
+
+**Kök sebep:** `turbinetwin` container'ı, host'taki paylaşımlı Caddy
+reverse proxy'sinin (`/opt/services/`, ayrı bir Compose projesi) bulunduğu
+`services_n8n_net` bridge network'üne daha önce **elle**
+(`docker network connect`) bağlanmıştı — bu bağlantı `docker-compose.yml`'de
+hiç tanımlı değildi. `docker compose up --build` container'ı recreate
+edince, sadece bu projenin kendi `turbinetwin_default` network'üne
+bağlandı; elle eklenen bağlantı sessizce düştü. Caddy artık `turbinetwin`
+adını çözemedi.
+
+Bu aynı sınıftan bir hata: OtoŞarj projesindeki `.env.production` git
+incident'i gibi — **sunucuda elle yapılan bir düzeltme, repo'nun/deploy
+sürecinin bilmediği bir yerde duruyordu**, ve bir sonraki otomatik işlem
+onu sessizce sildi.
+
+**Düzeltme:** `docker-compose.yml`'e `services_n8n_net`'i `external: true`
+bir network olarak ekledim, container'ı hem kendi `default` network'üne
+hem buna bağlı tuttum. Artık `docker compose up --build` bu bağlantıyı
+**kendisi** kuruyor — elle hatırlanması gereken bir adım değil. Bir rebuild
+daha yapılıp (`docker compose up -d --build`) container'ın otomatik olarak
+doğru network'e bağlandığı ve dış URL'in kesintisiz cevap verdiği
+doğrulandı.
+
+**Ders:** Bir container'ı `docker network connect` ile elle bir network'e
+bağlıyorsan, o bağlantıyı `docker-compose.yml`'e (external network olarak)
+yazmadıkça bir sonraki rebuild onu siler. Sunucuda "çalışıyor" olması,
+o ayarın kalıcı/tekrarlanabilir olduğu anlamına gelmez.

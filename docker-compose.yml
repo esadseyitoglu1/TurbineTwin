@@ -7,3 +7,24 @@
       - "8000:8000"
     environment:
       - PYTHONPATH=src
+    networks:
+      - default
+      - services_n8n_net
+
+# services_n8n_net is the shared bridge network the host's Caddy reverse
+# proxy (services-caddy-1, see /opt/services/Caddyfile) and this container
+# both need to sit on so Caddy can resolve "turbinetwin" by container name.
+# It's an *external* network owned by the sibling `services` Compose
+# project, not this one -- without this block, `docker compose up --build`
+# recreates the container attached only to this project's own default
+# network, silently dropping the connection that used to be added by hand
+# with `docker network connect`. That's a real outage that happened on
+# 2026-09-22: a rebuild broke turbinetwin.esadseyitoglu.xyz with
+# "dial tcp: lookup turbinetwin on 127.0.0.11:53: no such host" in Caddy's
+# logs until the network was manually reattached. This block makes that
+# reattachment part of `docker compose up`, not a manual step to remember.
+networks:
+  default: {}
+  services_n8n_net:
+    external: true
+    name: services_n8n_net
