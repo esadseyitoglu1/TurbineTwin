@@ -13,6 +13,38 @@
     }
     #intro strong { color: #e6e6e6; }
     #intro em { color: #4fd1c5; font-style: normal; }
+
+    #site-footer {
+      max-width: 900px; margin-top: 3rem; padding-top: 1.5rem;
+      border-top: 1px solid #2a2e3a;
+    }
+    #site-footer h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; }
+    .layer-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 1rem;
+    }
+    .layer {
+      background: #1a1d27; border: 1px solid #2a2e3a;
+      border-radius: 8px; padding: 0.9rem 1rem;
+    }
+    .layer-tag {
+      display: inline-block; font-size: 0.7rem; text-transform: uppercase;
+      letter-spacing: 0.04em; color: #4fd1c5; background: #1a3a35;
+      padding: 0.15rem 0.5rem; border-radius: 4px; margin-bottom: 0.5rem;
+    }
+    .layer p {
+      margin: 0; font-size: 0.85rem; line-height: 1.55; color: #a0aec0;
+    }
+    .layer em { color: #e6e6e6; font-style: normal; }
+    .layer code {
+      background: #0f1117; padding: 0.05rem 0.3rem;
+      border-radius: 3px; font-size: 0.8rem; color: #cbd5e0;
+    }
+    .footer-links {
+      margin-top: 1.25rem; font-size: 0.85rem; color: #a0aec0;
+    }
+    .footer-links a { color: #4fd1c5; text-decoration: none; }
+    .footer-links a:hover { text-decoration: underline; }
     #chart-wrap { max-width: 900px; height: 420px; }
 
     #anomaly-panel { max-width: 900px; margin-top: 1.5rem; }
@@ -131,6 +163,57 @@
     </p>
     <div id="explanation-box" hidden></div>
   </div>
+
+  <footer id="site-footer">
+    <h2>What's under this page</h2>
+    <div class="layer-grid">
+      <div class="layer">
+        <span class="layer-tag">Detection</span>
+        <p>
+          Every reading is compared against the manufacturer's power curve.
+          The anomaly threshold is derived from the data (1st percentile of
+          in-range deviation), not hardcoded, and benchmarked against
+          sklearn's Isolation Forest — the two agree on only 39% of flagged
+          rows, for reasons worth explaining.
+        </p>
+      </div>
+      <div class="layer">
+        <span class="layer-tag">RAG</span>
+        <p>
+          The explanation you get by clicking a row is retrieval-augmented:
+          it <em>retrieves</em> the anomaly cluster plus any maintenance
+          record covering that window, then <em>generates</em> a verdict.
+          Generation is a template, not an LLM call — for a question with a
+          checkable answer, a template can't invent a downtime that never
+          happened.
+        </p>
+      </div>
+      <div class="layer">
+        <span class="layer-tag">MCP</span>
+        <p>
+          The same three functions are exposed as Model Context Protocol
+          tools, so an AI assistant can query this turbine directly —
+          <code>get_turbine_summary()</code>, <code>get_anomalies()</code>,
+          <code>explain_anomaly(timestamp)</code>. That's where an LLM
+          belongs here: choosing and chaining tools, not inventing facts.
+        </p>
+      </div>
+      <div class="layer">
+        <span class="layer-tag">Security</span>
+        <p>
+          No SQL injection surface — there's no database (CSV into pandas, a
+          static JSON maintenance log). Every input path was tested against
+          malformed and hostile payloads; five real issues were found and
+          fixed with regression tests. Security headers and CSP are set on
+          every response. Two gaps are documented rather than hidden.
+        </p>
+      </div>
+    </div>
+    <p class="footer-links">
+      Real SCADA data, 2018, ~50k records ·
+      <a href="https://github.com/esadseyitoglu1/TurbineTwin">Source and full write-up on GitHub →</a>
+    </p>
+  </footer>
 
   <script>
     // MAX_POINTS: keep the chart to a rolling window instead of growing
