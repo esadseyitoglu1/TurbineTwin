@@ -1,12 +1,12 @@
 # TurbineTwin — Wind Turbine Digital Twin
 
-[![Live Demo](https://img.shields.io/badge/Live_Demo-turbinetwin.esadseyitoglu.xyz-22c55e?style=for-the-badge&logo=rocket)](http://turbinetwin.esadseyitoglu.xyz)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-turbinetwin.esadseyitoglu.xyz-22c55e?style=for-the-badge&logo=rocket)](https://turbinetwin.esadseyitoglu.xyz)
 [![Python](https://img.shields.io/badge/Python-3.14-3776AB?style=for-the-badge&logo=python)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
 [![MCP](https://img.shields.io/badge/MCP-Model_Context_Protocol-8B5CF6?style=for-the-badge)](https://modelcontextprotocol.io)
-[![Tests](https://img.shields.io/badge/Tests-34%2F34_passing-22c55e?style=for-the-badge&logo=pytest)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-43%2F43_passing-22c55e?style=for-the-badge&logo=pytest)](tests/)
 
-**🌐 [Live Demo → http://turbinetwin.esadseyitoglu.xyz](http://turbinetwin.esadseyitoglu.xyz)**
+**🌐 [Live Demo → https://turbinetwin.esadseyitoglu.xyz](https://turbinetwin.esadseyitoglu.xyz)**
 
 ---
 
@@ -23,11 +23,53 @@ approach: detecting when equipment drifts from its design values.
 
 The project deliberately demonstrates three layers working together on the same dataset:
 
-| Layer | What it does |
-|---|---|
-| **Anomaly detection** | Rule-based power-curve deviation vs. Isolation Forest comparison |
-| **RAG** | `/api/ask` explains each anomaly in natural language (retrieval + templated generation) |
-| **MCP server** | Exposes the same logic as AI-callable tools for Claude Desktop / Cursor |
+| Layer | What it does | Where it lives |
+|---|---|---|
+| **Anomaly detection** | Rule-based power-curve deviation vs. Isolation Forest comparison | `src/turbinetwin/deviation.py` (`flag_anomalies`, `run_isolation_forest`), surfaced in the dashboard's live status panel |
+| **RAG** | Retrieves the flagged reading + any overlapping maintenance record, then generates a plain-language verdict | `src/turbinetwin/ask.py` + `maintenance.py` → `GET /api/ask`, triggered by clicking any anomaly row |
+| **MCP server** | Exposes the same three functions as AI-callable tools, no HTTP needed | `src/turbinetwin/mcp_server.py`, used from Claude Desktop / Cursor |
+
+All three read the same in-memory dataset and share the same detection code —
+the RAG endpoint and the MCP tools are two different front doors onto one
+engine, not reimplementations.
+
+## Try it in 2 minutes
+
+On the [live demo](https://turbinetwin.esadseyitoglu.xyz) — no setup, no login:
+
+1. **Jump straight to a real anomaly.** The 2018 dataset replays in timestamp
+   order, and the first genuine anomaly is hours in, so the dashboard ships
+   with two shortcut buttons. Click **"Unexplained anomaly"** — the stream
+   jumps to row 1460, where measured power sits near zero while the power
+   curve expects ~2300 kW.
+2. **Watch the status panel flip.** Wind speed, measured vs. theoretical
+   power, deviation %, and the state label (normal / idle / anomaly) update
+   live over Server-Sent Events. Anomalous readings accumulate in the table
+   below the chart.
+3. **Ask *why* — this is the RAG layer.** Click any row in that anomaly
+   table. The app calls `/api/ask?timestamp=...`, which *retrieves* the
+   flagged reading plus any maintenance record covering that timestamp, then
+   *generates* a verdict: either "this overlaps planned maintenance" or
+   "this is genuine, unexplained underperformance."
+4. **Compare the two causes.** Now click **"Explained by maintenance"**
+   (row 2153) and ask about a row there. Same detector, same endpoint,
+   opposite conclusion — a downtime the log accounts for. That contrast is
+   the point: flagging an anomaly is easy, *triaging* it is the useful part.
+5. **(Optional) Query it as an AI tool.** Everything above is also reachable
+   over MCP — see [MCP server](#mcp-server) below. In Claude Desktop you can
+   ask "is this turbine healthy?" and it calls `get_turbine_summary()`
+   itself, then drills into `explain_anomaly(timestamp)`.
+
+### Where "RAG" actually applies here
+
+Worth being precise, since the term is overloaded: retrieval is a rule-based
+lookup over a structured maintenance log (timestamp-interval matching), and
+generation is a **template**, not an LLM call. That was a deliberate choice —
+for a question with a verifiable answer ("was this window under maintenance?"),
+a template can't hallucinate a downtime that never happened, and the whole
+path stays testable. The LLM sits one layer up: via MCP, an assistant decides
+*which* of these tools to call and chains them. Reasoning in `NOTLAR.md`,
+Phase 4.
 
 ## Why this approach
 
